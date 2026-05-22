@@ -1,2 +1,6 @@
 numpy
 pandas
+pyzbar
+opencv-python
+bcrypt	
+uvicorn	
