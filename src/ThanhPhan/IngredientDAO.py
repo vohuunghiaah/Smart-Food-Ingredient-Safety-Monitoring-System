@@ -1,9 +1,8 @@
 import pyodbc
-from ThanhPhanDTO import ThanhPhanDTO
+from IngredientDTO import IngredientDTO
 
-class ThanhPhanDAO:
+class IngredientDAO:
     def get_connection(self):
-
         return pyodbc.connect(
             r'Driver={ODBC Driver 17 for SQL Server};'
             r'Server=MSI\SQLEXPRESS;'
@@ -12,17 +11,17 @@ class ThanhPhanDAO:
             r'TrustServerCertificate=yes;'
         )
 
-    def lay_tat_ca_thanh_phan(self):
+    def get_all_ingredients(self):
         conn = self.get_connection()
         cursor = conn.cursor()
 
         cursor.execute("SELECT ma_thanh_phan, ten_thanh_phan FROM ThanhPhan")
         rows = cursor.fetchall()
 
-        danh_sach = []
+        ingredients = []
         for row in rows:
-            tp = ThanhPhanDTO(row.ma_thanh_phan, row.ten_thanh_phan)
-            danh_sach.append(tp)
+            ingredient = IngredientDTO(row.ma_thanh_phan, row.ten_thanh_phan)
+            ingredients.append(ingredient)
 
         conn.close()
-        return danh_sach
+        return ingredients
