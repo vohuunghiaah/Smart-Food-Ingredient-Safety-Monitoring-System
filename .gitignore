@@ -8,3 +8,5 @@
 *.svg
 *.tex
 __pycache__/
+.env
+.vscode

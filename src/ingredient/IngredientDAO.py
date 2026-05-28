@@ -3,15 +3,6 @@ from IngredientDTO import IngredientDTO
 
 
 class IngredientDAO:
-    def get_connection(self):
-        return pyodbc.connect(
-            r'Driver={ODBC Driver 17 for SQL Server};'
-            r'Server=MSI\SQLEXPRESS;'
-            r'Database=FOOD;'
-            r'Trusted_Connection=yes;'
-            r'TrustServerCertificate=yes;'
-        )
-
     def get_all_ingredients(self):
         conn = self.get_connection()
         cursor = conn.cursor()

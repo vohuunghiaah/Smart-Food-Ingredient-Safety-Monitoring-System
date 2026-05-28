@@ -1,20 +1,12 @@
-import pyodbc
+from cv2 import utils
 from AccountDTO import AccountDTO
-
+import utils.database_config  # Import module cấu hình kết nối vừa tạo
+from utils.database_config import database_config
 class AccountDAO:
-    def get_connection(self):
-        return pyodbc.connect(
-            r'Driver={ODBC Driver 17 for SQL Server};'
-            r'Server=MSI\SQLEXPRESS;'
-            r'Database=FOOD;'
-            r'Trusted_Connection=yes;'
-            r'TrustServerCertificate=yes;'
-        )
-
     def get_account_by_id(self, user_id):
-        conn = self.get_connection()
+        # Gọi thẳng từ module database_config, không dùng self
+        conn = database_config.get_connection()
         cursor = conn.cursor()
-
 
         cursor.execute("SELECT * FROM TaiKhoan WHERE ma_nguoi_dung = ?", (user_id,))
         row = cursor.fetchone()
@@ -22,7 +14,6 @@ class AccountDAO:
         if row is None:
             conn.close()
             return None
-
 
         account = AccountDTO(row.ma_nguoi_dung, row.ten_nguoi_dung, row.so_dien_thoai, row.mat_khau)
 
@@ -36,9 +27,8 @@ class AccountDAO:
         return account
 
     def add_account(self, account):
-        conn = self.get_connection()
+        conn = database_config.get_connection()
         cursor = conn.cursor()
-
 
         cursor.execute(
             "INSERT INTO TaiKhoan (ma_nguoi_dung, ten_nguoi_dung, so_dien_thoai, mat_khau) VALUES (?, ?, ?, ?)",
@@ -48,14 +38,13 @@ class AccountDAO:
         conn.close()
 
     def update_profile_and_allergies(self, account):
-        conn = self.get_connection()
+        conn = database_config.get_connection()
         cursor = conn.cursor()
 
         cursor.execute(
             "UPDATE TaiKhoan SET ten_nguoi_dung = ?, so_dien_thoai = ? WHERE ma_nguoi_dung = ?",
             (account.user_name, account.phone_number, account.user_id)
         )
-
 
         cursor.execute("DELETE FROM ThanhPhanDiUng WHERE ma_nguoi_dung = ?", (account.user_id,))
 

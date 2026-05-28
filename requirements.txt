@@ -4,3 +4,4 @@ pyzbar
 opencv-python
 bcrypt	
 uvicorn	
+python-dotenv
