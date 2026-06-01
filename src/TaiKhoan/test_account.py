@@ -67,7 +67,6 @@ def test_thiet_lap_profile_va_di_ung(bus, dao, ma_test):
     print("[*] BUOC 2: KIEM TRA THIET LAP PROFILE & DI UNG")
     print(SUB_SEPARATOR)
 
-
     chat_di_ung = ["Đậu phộng", "Sữa bò", "Thịt heo"]
 
     thanh_cong, thong_bao = bus.setup_profile(ma_test, "Nguoi Dung Update V2", "0987654321", chat_di_ung)
