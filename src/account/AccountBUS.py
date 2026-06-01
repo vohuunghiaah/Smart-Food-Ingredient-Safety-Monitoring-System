@@ -1,9 +1,13 @@
+
 import bcrypt
 from AccountDAO import AccountDAO
+from ingredient.IngredientDAO import IngredientDAO
+
 
 class AccountBUS:
     def __init__(self):
         self.dao = AccountDAO()
+        self.ingredient_dao = IngredientDAO()
 
     def register(self, account):
         if account.user_id == "" or account.password == "":
@@ -12,7 +16,6 @@ class AccountBUS:
         existing_account = self.dao.get_account_by_id(account.user_id)
         if existing_account is not None:
             return False, "Tài khoản đã tồn tại!"
-
 
         hashed_password = bcrypt.hashpw(account.password.encode('utf-8'), bcrypt.gensalt())
         account.password = hashed_password.decode('utf-8')
@@ -35,10 +38,28 @@ class AccountBUS:
         if user is None:
             return False, "Không tìm thấy user!"
 
-
         user.user_name = new_name
         user.phone_number = new_phone
-        user.allergies = allergy_list
+
+        allergy_ids = []
+        invalid_names = []
+
+        for name in allergy_list:
+            name = name.strip()
+            ingredient_id = self.ingredient_dao.get_ingredient_id_by_name(name)
+
+            if ingredient_id is not None:
+                if ingredient_id not in allergy_ids:
+                    allergy_ids.append(ingredient_id)
+            else:
+                invalid_names.append(name)
+
+        user.allergies = allergy_ids
 
         self.dao.update_profile_and_allergies(user)
+
+        if len(invalid_names) > 0:
+            chuoi_loi = ", ".join(invalid_names)
+            return True, f"Lưu thành công! Nhưng các chất không có trong hệ thống:  {chuoi_loi}"
+
         return True, "Lưu profile thành công!"
