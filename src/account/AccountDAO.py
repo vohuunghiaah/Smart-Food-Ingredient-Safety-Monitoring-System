@@ -1,11 +1,11 @@
 from cv2 import utils
-from AccountDTO import AccountDTO
+from account.AccountDTO import AccountDTO
 import utils.database_config  # Import module cấu hình kết nối vừa tạo
 from utils.database_config import database_config
 class AccountDAO:
     def get_account_by_id(self, user_id):
         # Gọi thẳng từ module database_config, không dùng self
-        conn = database_config.get_connection()
+        conn = database_config()
         cursor = conn.cursor()
 
         cursor.execute("SELECT * FROM TaiKhoan WHERE ma_nguoi_dung = ?", (user_id,))
@@ -27,7 +27,7 @@ class AccountDAO:
         return account
 
     def add_account(self, account):
-        conn = database_config.get_connection()
+        conn = database_config()
         cursor = conn.cursor()
 
         cursor.execute(
@@ -38,7 +38,7 @@ class AccountDAO:
         conn.close()
 
     def update_profile_and_allergies(self, account):
-        conn = database_config.get_connection()
+        conn = database_config()
         cursor = conn.cursor()
 
         cursor.execute(

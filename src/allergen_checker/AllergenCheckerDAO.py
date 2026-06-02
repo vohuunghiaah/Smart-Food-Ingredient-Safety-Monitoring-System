@@ -4,7 +4,7 @@ import os
 # Them duong dan goc cua project vao sys.path de import utils
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from utils import database_config
+from utils.database_config import database_config
 
 
 class AllergenCheckerDAO:
@@ -21,7 +21,7 @@ class AllergenCheckerDAO:
         Tra cuu san pham theo ma vach.
         Tra ve dict {"id", "name", "group"} hoac None neu khong tim thay.
         """
-        conn = database_config.get_connection()
+        conn = database_config()
         cursor = conn.cursor()
 
         query = """
@@ -48,7 +48,7 @@ class AllergenCheckerDAO:
         Tra cuu san pham theo ma san pham.
         Tra ve dict {"id", "name", "group"} hoac None neu khong tim thay.
         """
-        conn = database_config.get_connection()
+        conn = database_config()
         cursor = conn.cursor()
 
         query = """
@@ -75,7 +75,7 @@ class AllergenCheckerDAO:
         Lay danh sach tat ca thanh phan cua mot san pham.
         Tra ve list [{"id", "name"}]
         """
-        conn = database_config.get_connection()
+        conn = database_config()
         cursor = conn.cursor()
 
         query = """
@@ -96,7 +96,7 @@ class AllergenCheckerDAO:
         Lay danh sach ten goi khac cua mot thanh phan.
         Tra ve list ["ten_goi_khac_1", "ten_goi_khac_2", ...]
         """
-        conn = database_config.get_connection()
+        conn = database_config()
         cursor = conn.cursor()
 
         query = """
@@ -115,7 +115,7 @@ class AllergenCheckerDAO:
         Lay danh sach thanh phan di ung cua nguoi dung.
         Tra ve list [{"id", "name"}]
         """
-        conn = database_config.get_connection()
+        conn = database_config()
         cursor = conn.cursor()
 
         query = """
@@ -136,7 +136,7 @@ class AllergenCheckerDAO:
         Lay danh sach tat ca san pham.
         Tra ve list [{"id", "name", "barcode", "group"}]
         """
-        conn = database_config.get_connection()
+        conn = database_config()
         cursor = conn.cursor()
 
         query = """

@@ -1,5 +1,5 @@
-from AllergenCheckerDAO import AllergenCheckerDAO
-from AllergenCheckerDTO import AllergenResultDTO
+from allergen_checker.AllergenCheckerDAO import AllergenCheckerDAO
+from allergen_checker.AllergenCheckerDTO import AllergenResultDTO
 
 
 class AllergenCheckerBUS:

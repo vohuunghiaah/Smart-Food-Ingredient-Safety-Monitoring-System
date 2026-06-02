@@ -11,9 +11,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 src_dir = os.path.dirname(current_dir)
 sys.path.append(src_dir)
 
-from TaiKhoan.AccountDTO import AccountDTO
-from TaiKhoan.AccountBUS import AccountBUS
-from TaiKhoan.AccountDAO import AccountDAO
+from account.AccountDTO import AccountDTO
+from account.AccountBUS import AccountBUS
+from account.AccountDAO import AccountDAO
 
 
 SEPARATOR = "=" * 60
@@ -113,6 +113,6 @@ if __name__ == "__main__":
         print(f"   Chi tiet loi: {e}")
         print(f"\n[GOI Y] Khac phuc:")
         print(f"   1. Kiem tra xem ban da thay doi import trong AccountBUS.py chua")
-        print(f"      (Can sua thanh: from ThanhPhan.IngredientDAO import IngredientDAO)")
+        print(f"      (Can sua thanh: from ingredient.IngredientDAO import IngredientDAO)")
         print(f"   2. Kiem tra SQL Server da bat chua")
         print(SEPARATOR)
