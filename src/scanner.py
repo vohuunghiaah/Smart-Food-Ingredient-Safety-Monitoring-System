@@ -1,14 +1,33 @@
 import cv2
 from pyzbar.pyzbar import decode, ZBarSymbol
+import pyodbc
 import os
-import utisl.database_config 
+
+# Kết nối
+SERVER = 'server' #bỏ tên server vào, vd: DESKTOP-1PJL28F
+DATABASE_NAME = 'AllergyDB'
+USERNAME = 'sa'
+PASSWORD = 'password' #bỏ pass sql server của mn vào
+
+
+def get_connection_string():
+    return (
+        f"Driver={{ODBC Driver 17 for SQL Server}};"
+        f"Server={SERVER};"
+        f"Database={DATABASE_NAME};"
+        f"UID={USERNAME};"
+        f"PWD={PASSWORD};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=yes;"
+    )
+
 
 def get_product_details(barcode_val):
     try:
-        # Gọi trực tiếp hàm lấy kết nối từ module config
-        conn = database_config.get_connection()
+        conn = pyodbc.connect(get_connection_string())
         cursor = conn.cursor()
 
+        # Query to fetch ID, Name, Category, and Ingredient
         query = """
                 SELECT s.ma_san_pham, s.ten_san_pham, n.ten_nhom, t.ten_thanh_phan
                 FROM SanPham s
@@ -25,7 +44,9 @@ def get_product_details(barcode_val):
         print(f"[!] Query Error: {e}")
         return []
 
+
 def main():
+
     os.environ['ZBAR_NONE'] = '1'
     cap = cv2.VideoCapture(0)
     cap.set(3, 1280)
@@ -33,8 +54,7 @@ def main():
 
     print("\n" + "=" * 50)
     print("ALLERGY CHECKER SYSTEM (READ-ONLY MODE)")
-    # Lấy tên database trực tiếp từ biến môi trường để hiển thị log
-    print(f"Connecting to existing Database: {os.getenv('DB_DATABASE')}") 
+    print("Connecting to existing Database: " + DATABASE_NAME)
     print("Point camera at barcode...")
     print("=" * 50 + "\n")
 
@@ -43,6 +63,7 @@ def main():
         ret, frame = cap.read()
         if not ret: break
 
+        #Hiện chỉ quét được mã ean-13 và code128
         barcodes = decode(frame, symbols=[ZBarSymbol.EAN13, ZBarSymbol.CODE128])
         for barcode in barcodes:
             scanned_barcode = barcode.data.decode("utf-8")
@@ -73,6 +94,7 @@ def main():
         else:
             print("[?] No record found in system. Please check your SQL Server data.")
         print("\n" + "=" * 50)
+
 
 if __name__ == "__main__":
     main()
