@@ -1,5 +1,5 @@
 import pyodbc
-from IngredientDTO import IngredientDTO
+from ThanhPhan.IngredientDTO import IngredientDTO
 
 
 class IngredientDAO:
