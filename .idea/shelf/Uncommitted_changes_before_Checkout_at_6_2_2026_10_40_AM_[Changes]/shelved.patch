@@ -1,0 +1,77 @@
+Index: src/account/AccountBUS.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import bcrypt\r\nfrom AccountDAO import AccountDAO\r\nfrom ThanhPhan.IngredientDAO import IngredientDAO\r\n\r\n\r\nclass AccountBUS:\r\n    def __init__(self):\r\n        self.dao = AccountDAO()\r\n        self.ingredient_dao = IngredientDAO()\r\n\r\n    def register(self, account):\r\n        if account.user_id == \"\" or account.password == \"\":\r\n            return False, \"Không được để trống thông tin!\"\r\n\r\n        existing_account = self.dao.get_account_by_id(account.user_id)\r\n        if existing_account is not None:\r\n            return False, \"Tài khoản đã tồn tại!\"\r\n\r\n        hashed_password = bcrypt.hashpw(account.password.encode('utf-8'), bcrypt.gensalt())\r\n        account.password = hashed_password.decode('utf-8')\r\n\r\n        self.dao.add_account(account)\r\n        return True, \"Đăng ký thành công!\"\r\n\r\n    def login(self, user_id, input_password):\r\n        user = self.dao.get_account_by_id(user_id)\r\n        if user is None:\r\n            return False, \"Sai mã người dùng!\"\r\n\r\n        if bcrypt.checkpw(input_password.encode('utf-8'), user.password.encode('utf-8')):\r\n            return True, \"Đăng nhập thành công!\"\r\n        else:\r\n            return False, \"Sai mật khẩu!\"\r\n\r\n    def setup_profile(self, user_id, new_name, new_phone, allergy_list):\r\n        user = self.dao.get_account_by_id(user_id)\r\n        if user is None:\r\n            return False, \"Không tìm thấy user!\"\r\n\r\n        user.user_name = new_name\r\n        user.phone_number = new_phone\r\n\r\n        allergy_ids = []\r\n        invalid_names = []\r\n\r\n        for name in allergy_list:\r\n            name = name.strip()\r\n            ingredient_id = self.ingredient_dao.get_ingredient_id_by_name(name)\r\n\r\n            if ingredient_id is not None:\r\n                if ingredient_id not in allergy_ids:\r\n                    allergy_ids.append(ingredient_id)\r\n            else:\r\n                invalid_names.append(name)\r\n\r\n        user.allergies = allergy_ids\r\n\r\n        self.dao.update_profile_and_allergies(user)\r\n\r\n        if len(invalid_names) > 0:\r\n            chuoi_loi = \", \".join(invalid_names)\r\n            return True, f\"Lưu thành công! Nhưng các chất không có trong hệ thống:  {chuoi_loi}\"\r\n\r\n        return True, \"Lưu profile thành công!\"
+===================================================================
+diff --git a/src/account/AccountBUS.py b/src/account/AccountBUS.py
+--- a/src/account/AccountBUS.py	(revision da35b1d65044d76daee8425775148341c767e0e7)
++++ b/src/account/AccountBUS.py	(date 1780371285236)
+@@ -1,6 +1,6 @@
+ import bcrypt
+ from AccountDAO import AccountDAO
+-from ThanhPhan.IngredientDAO import IngredientDAO
++from ingredient.IngredientDAO import IngredientDAO
+ 
+ 
+ class AccountBUS:
+Index: src/account/test_account.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\r\nimport sys\r\nimport os\r\nimport io\r\n\r\n\r\nsys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')\r\n\r\n\r\ncurrent_dir = os.path.dirname(os.path.abspath(__file__))\r\nsrc_dir = os.path.dirname(current_dir)\r\nsys.path.append(src_dir)\r\n\r\nfrom TaiKhoan.AccountDTO import AccountDTO\r\nfrom TaiKhoan.AccountBUS import AccountBUS\r\nfrom TaiKhoan.AccountDAO import AccountDAO\r\n\r\n\r\nSEPARATOR = \"=\" * 60\r\nSUB_SEPARATOR = \"-\" * 60\r\n\r\n\r\ndef clear_test_data(dao, ma_test):\r\n    \"\"\"\r\n    Xoa tai khoan test cu (neu co) de dam bao moi lan chay test deu luon thanh cong\r\n    ma khong bi vuong loi \"Tai khoan da ton tai\".\r\n    \"\"\"\r\n    try:\r\n        conn = dao.get_connection()\r\n        cursor = conn.cursor()\r\n        cursor.execute(\"DELETE FROM TaiKhoan WHERE ma_nguoi_dung = ?\", (ma_test,))\r\n        conn.commit()\r\n        conn.close()\r\n    except Exception:\r\n        pass  # Bo qua neu co loi hoac khong co ket noi\r\n\r\n\r\ndef test_tao_tai_khoan(bus, dao, ma_test):\r\n    \"\"\"\r\n    Kiem tra chuc nang DANG KY TAI KHOAN va kiem tra du lieu thuc te trong DB.\r\n    \"\"\"\r\n    print(f\"\\n{SUB_SEPARATOR}\")\r\n    print(\"[*] BUOC 1: KIEM TRA TAO TAI KHOAN\")\r\n    print(SUB_SEPARATOR)\r\n\r\n    tk_moi = AccountDTO(ma_test, \"Nguoi Dung Test\", \"0123456789\", \"password123\")\r\n\r\n\r\n    thanh_cong, thong_bao = bus.register(tk_moi)\r\n    print(f\"  -> Ket qua tu BUS: {thong_bao}\")\r\n\r\n\r\n    kiem_tra_db = dao.get_account_by_id(ma_test)\r\n    if kiem_tra_db is not None:\r\n        print(f\"  -> [THANH CONG] Da luu vao Database!\")\r\n        print(f\"     + Ten dang luu   : {kiem_tra_db.user_name}\")\r\n        print(f\"     + Pass (ma hoa)  : {kiem_tra_db.password}\")\r\n    else:\r\n        print(f\"  -> [THAT BAI] Khong tim thay {ma_test} trong Database.\")\r\n\r\n\r\ndef test_thiet_lap_profile_va_di_ung(bus, dao, ma_test):\r\n    \"\"\"\r\n    Kiem tra chuc nang CAP NHAT PROFILE va LUONG CHUYEN DOI TEN -> MA.\r\n    \"\"\"\r\n    print(f\"\\n{SUB_SEPARATOR}\")\r\n    print(\"[*] BUOC 2: KIEM TRA THIET LAP PROFILE & DI UNG\")\r\n    print(SUB_SEPARATOR)\r\n\r\n    chat_di_ung = [\"Đậu phộng\", \"Sữa bò\", \"Thịt heo\"]\r\n\r\n    thanh_cong, thong_bao = bus.setup_profile(ma_test, \"Nguoi Dung Update V2\", \"0987654321\", chat_di_ung)\r\n    print(f\"  -> Ket qua tu BUS: {thong_bao}\")\r\n\r\n\r\n    kiem_tra_db = dao.get_account_by_id(ma_test)\r\n    if kiem_tra_db is not None:\r\n        print(f\"  -> [THANH CONG] Du lieu trong Database da duoc cap nhat:\")\r\n        print(f\"     + Ten moi    : {kiem_tra_db.user_name}\")\r\n        print(f\"     + SDT moi    : {kiem_tra_db.phone_number}\")\r\n        print(f\"     + Ma di ung  : {kiem_tra_db.allergies} (Mong doi: ['TP02', 'TP01'])\")\r\n    else:\r\n        print(f\"  -> [THAT BAI] Khong the truy van CSDL.\")\r\n\r\n\r\n# ===========================================================================\r\n# CHUONG TRINH CHINH\r\n# ===========================================================================\r\nif __name__ == \"__main__\":\r\n    print(SEPARATOR)\r\n    print(\"[*] KHOI DONG QUY TRINH TEST: TAI KHOAN & DI UNG\")\r\n    print(SEPARATOR)\r\n\r\n    try:\r\n        bus = AccountBUS()\r\n        dao = AccountDAO()\r\n        MA_TEST_USER = \"U99\"\r\n\r\n\r\n        clear_test_data(dao, MA_TEST_USER)\r\n        print(\"  (Da don dep du lieu test rac neu co de san sang chay...)\")\r\n\r\n\r\n        test_tao_tai_khoan(bus, dao, MA_TEST_USER)\r\n        test_thiet_lap_profile_va_di_ung(bus, dao, MA_TEST_USER)\r\n\r\n        print(f\"\\n{SEPARATOR}\")\r\n        print(\"[OK] QUA TRINH TEST HOAN THANH KHONG CO LOI NGHIEM TRONG.\")\r\n        print(SEPARATOR)\r\n\r\n    except Exception as e:\r\n        print(f\"\\n[THAT BAI] Co loi he thong xay ra trong qua trinh test!\")\r\n        print(f\"   Chi tiet loi: {e}\")\r\n        print(f\"\\n[GOI Y] Khac phuc:\")\r\n        print(f\"   1. Kiem tra xem ban da thay doi import trong AccountBUS.py chua\")\r\n        print(f\"      (Can sua thanh: from ThanhPhan.IngredientDAO import IngredientDAO)\")\r\n        print(f\"   2. Kiem tra SQL Server da bat chua\")\r\n        print(SEPARATOR)
+===================================================================
+diff --git a/src/account/test_account.py b/src/account/test_account.py
+--- a/src/account/test_account.py	(revision da35b1d65044d76daee8425775148341c767e0e7)
++++ b/src/account/test_account.py	(date 1780371095680)
+@@ -11,9 +11,9 @@
+ src_dir = os.path.dirname(current_dir)
+ sys.path.append(src_dir)
+ 
+-from TaiKhoan.AccountDTO import AccountDTO
+-from TaiKhoan.AccountBUS import AccountBUS
+-from TaiKhoan.AccountDAO import AccountDAO
++from account.AccountDTO import AccountDTO
++from account.AccountBUS import AccountBUS
++from account.AccountDAO import AccountDAO
+ 
+ 
+ SEPARATOR = "=" * 60
+Index: utils/database_config.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import os\r\nimport pyodbc\r\nfrom dotenv import load_dotenv\r\n\r\nload_dotenv(dotenv_path=\"parameter.env\")\r\n\r\ndef get_connection():\r\n    \"\"\"\r\n    Tạo và trả về một kết nối tới SQL Server.\r\n    Sử dụng Windows Authentication (Trusted_Connection).\r\n    \"\"\"\r\n    server = os.getenv(\"DB_SERVER\")\r\n    database = os.getenv(\"DB_DATABASE\")\r\n    return pyodbc.connect(\r\n        f\"Driver={{ODBC Driver 17 for SQL Server}};\"\r\n        f\"Server={server};\"\r\n        f\"Database={database};\"\r\n        f\"Trusted_Connection=yes;\"\r\n        f\"TrustServerCertificate=yes;\"\r\n    )
+===================================================================
+diff --git a/utils/database_config.py b/utils/database_config.py
+--- a/utils/database_config.py	(revision da35b1d65044d76daee8425775148341c767e0e7)
++++ b/utils/database_config.py	(date 1780371385036)
+@@ -4,13 +4,13 @@
+ 
+ load_dotenv(dotenv_path="parameter.env")
+ 
+-def get_connection():
++def database_config(server, database):
+     """
+     Tạo và trả về một kết nối tới SQL Server.
+     Sử dụng Windows Authentication (Trusted_Connection).
+     """
+-    server = os.getenv("DB_SERVER")
+-    database = os.getenv("DB_DATABASE")
++    server = os.getenv("DESKTOP-1PJL28F")
++    database = os.getenv("AllergyDB")
+     return pyodbc.connect(
+         f"Driver={{ODBC Driver 17 for SQL Server}};"
+         f"Server={server};"
+Index: src/ingredient/IngredientDAO.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import pyodbc\r\nfrom ThanhPhan.IngredientDTO import IngredientDTO\r\n\r\n\r\nclass IngredientDAO:\r\n    def get_all_ingredients(self):\r\n        conn = self.get_connection()\r\n        cursor = conn.cursor()\r\n\r\n        cursor.execute(\"SELECT ma_thanh_phan, ten_thanh_phan FROM ThanhPhan\")\r\n        rows = cursor.fetchall()\r\n\r\n        ingredients = []\r\n        for row in rows:\r\n            ingredient = IngredientDTO(row.ma_thanh_phan, row.ten_thanh_phan)\r\n            ingredients.append(ingredient)\r\n\r\n        conn.close()\r\n        return ingredients\r\n\r\n    def get_ingredient_id_by_name(self, ingredient_name):\r\n        conn = self.get_connection()\r\n        cursor = conn.cursor()\r\n\r\n        cursor.execute(\"SELECT ma_thanh_phan FROM ThanhPhan WHERE ten_thanh_phan = ?\", (ingredient_name,))\r\n        row = cursor.fetchone()\r\n\r\n        conn.close()\r\n\r\n        if row is not None:\r\n            return row.ma_thanh_phan\r\n        return None
+===================================================================
+diff --git a/src/ingredient/IngredientDAO.py b/src/ingredient/IngredientDAO.py
+--- a/src/ingredient/IngredientDAO.py	(revision da35b1d65044d76daee8425775148341c767e0e7)
++++ b/src/ingredient/IngredientDAO.py	(date 1780371443114)
+@@ -1,5 +1,5 @@
+ import pyodbc
+-from ThanhPhan.IngredientDTO import IngredientDTO
++from ingredient.IngredientDTO import IngredientDTO
+ 
+ 
+ class IngredientDAO:
