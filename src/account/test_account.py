@@ -11,10 +11,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 src_dir = os.path.dirname(current_dir)
 sys.path.append(src_dir)
 
-from TaiKhoan.AccountDTO import AccountDTO
-from TaiKhoan.AccountBUS import AccountBUS
-from TaiKhoan.AccountDAO import AccountDAO
-
+from account.AccountDTO import AccountDTO
+from account.AccountBUS import AccountBUS
+from account.AccountDAO import AccountDAO
 
 SEPARATOR = "=" * 60
 SUB_SEPARATOR = "-" * 60

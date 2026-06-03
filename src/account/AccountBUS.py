@@ -1,7 +1,6 @@
 import bcrypt
 from AccountDAO import AccountDAO
-from ThanhPhan.IngredientDAO import IngredientDAO
-
+from ingredient.IngredientDAO import IngredientDAO
 
 class AccountBUS:
     def __init__(self):

@@ -1,10 +1,8 @@
-from cv2 import utils
 from AccountDTO import AccountDTO
-import utils.database_config  # Import module cấu hình kết nối vừa tạo
-from utils.database_config import database_config
+from utils import database_config
 class AccountDAO:
     def get_account_by_id(self, user_id):
-        # Gọi thẳng từ module database_config, không dùng self
+
         conn = database_config.get_connection()
         cursor = conn.cursor()
 
@@ -48,7 +46,7 @@ class AccountDAO:
 
         cursor.execute("DELETE FROM ThanhPhanDiUng WHERE ma_nguoi_dung = ?", (account.user_id,))
 
-        # Add new allergies
+
         for ingredient_id in account.allergies:
             cursor.execute(
                 "INSERT INTO ThanhPhanDiUng (ma_nguoi_dung, ma_thanh_phan) VALUES (?, ?)",
