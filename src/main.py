@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 # Import
 from account.AccountBUS import AccountBUS
 from allergen_checker.AllergenCheckerBUS import AllergenCheckerBUS
-from TaiKhoan.scanner import get_product_from_openfoodfacts
+from scanner.scanner import get_product_from_openfoodfacts
 
 class MainApplication:
     def __init__(self):
@@ -100,7 +100,7 @@ class MainApplication:
 
             if choice == "1":
                 # Nhập trực tiếp hàm main() quét camera từ file gốc scanner.py của Tiên
-                from TaiKhoan import scanner
+                from scanner import scanner
 
                 print("\n[HỆ THỐNG] Kích hoạt Camera từ file scanner.py...")
                 # Thay vì tự code camera, chạy hàm quét của file scanner và lấy mã vạch trả về
