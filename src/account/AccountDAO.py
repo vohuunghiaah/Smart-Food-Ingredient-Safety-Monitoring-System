@@ -48,7 +48,7 @@ class AccountDAO:
 
         cursor.execute("DELETE FROM ThanhPhanDiUng WHERE ma_nguoi_dung = ?", (account.user_id,))
 
-        # Add new allergies
+
         for ingredient_id in account.allergies:
             cursor.execute(
                 "INSERT INTO ThanhPhanDiUng (ma_nguoi_dung, ma_thanh_phan) VALUES (?, ?)",

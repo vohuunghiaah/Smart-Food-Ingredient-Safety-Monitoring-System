@@ -1,10 +1,11 @@
 import pyodbc
 from ingredient.IngredientDTO import IngredientDTO
-
+from utils import database_config
 
 class IngredientDAO:
     def get_all_ingredients(self):
-        conn = self.database_config()
+
+        conn = database_config.get_connection()
         cursor = conn.cursor()
 
         cursor.execute("SELECT ma_thanh_phan, ten_thanh_phan FROM ThanhPhan")
@@ -19,7 +20,8 @@ class IngredientDAO:
         return ingredients
 
     def get_ingredient_id_by_name(self, ingredient_name):
-        conn = self.database_config()
+
+        conn = database_config.get_connection()
         cursor = conn.cursor()
 
         cursor.execute("SELECT ma_thanh_phan FROM ThanhPhan WHERE ten_thanh_phan = ?", (ingredient_name,))
