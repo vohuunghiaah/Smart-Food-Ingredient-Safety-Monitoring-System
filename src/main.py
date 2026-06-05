@@ -18,32 +18,39 @@ class MainApplication:
         print("=" * 50)
         print("Vui lòng đăng nhập hệ thống để tiếp tục.")
 
-        user_id = input("Mã người dùng (User ID): ").strip()
-        password = input("Mật khẩu: ").strip()
+        # Dùng vòng lặp while để không bị văng chương trình khi nhập sai
+        while True:
+            phone_number = input("\nSố điện thoại: ").strip()
+            password = input("Mật khẩu: ").strip()
 
-        # Gọi file AccountBUS xử lý kiểm tra tài khoản từ SQL Server
-        success, message = self.account_bus.login(user_id, password)
-        print(f">> {message}")
-
-        if success:
-            self.current_user_id = user_id
-            # Gọi tầng DAO để lấy thông tin hiển thị lời chào
-            user_info = self.account_bus.dao.get_account_by_id(user_id)
-            print(f"Chào mừng quay trở lại, {user_info.user_name}!")
-            return True
-
-        return False
+            # Sử dụng logic đăng nhập bằng số điện thoại (trả về thêm user_id để phiên làm việc lưu lại)
+            success, message, user_id = self.account_bus.login_by_phone(phone_number, password)
+            
+            if success:
+                self.current_user_id = user_id
+                # Gọi tầng DAO để lấy thông tin hiển thị lời chào
+                user_info = self.account_bus.dao.get_account_by_id(user_id)
+                print(f"\n>> {message}")
+                print(f"Chào mừng quay trở lại, {user_info.user_name}!")
+                return True
+            else:
+                # Hiển thị thông báo sai chung chung như yêu cầu
+                print(">> [!] Sai tài khoản hoặc mật khẩu. Vui lòng thử lại!")
+                
+                # Hỏi người dùng có muốn thử lại hay thoát
+                retry = input("Bạn có muốn tiếp tục đăng nhập không? (y/n): ").strip().lower()
+                if retry != 'y':
+                    return False
 
     def run_check_flow(self, barcode):
         """Điều phối kiểm tra dị ứng giữa SQL nội bộ và API Cloud"""
-        print(f"\n[+] ĐANG TIẾN HÀNH KIỂM TRA MÀ VẠCH: {barcode}")
+        print(f"\n[+] ĐANG TIẾN HÀNH KIỂM TRA MÃ VẠCH: {barcode}")
 
         # Gọi AllergenCheckerBUS xử lý so khớp chất dị ứng gốc + tên gọi khác (alias)
         result = self.allergen_bus.check_allergens_by_barcode(self.current_user_id, barcode)
 
         # Trường hợp 1: Có sẵn sản phẩm trong SQL Server của hệ thống
         if result.product_name is not None:
-            # Gọi hàm hiển thị kết quả format đẹp mắt có sẵn trong file BUS của bạn
             self.allergen_bus.print_result(result)
 
         # Trường hợp 2: Không có ở local -> Chuyển tiếp truy vấn sang OpenFoodFacts
@@ -87,7 +94,7 @@ class MainApplication:
     def start(self):
         # Bước 1: Yêu cầu đăng nhập trước
         if not self.execute_login():
-            print("Đăng nhập thất bại. Đóng chương trình!")
+            print("Đăng nhập thất bại hoặc đã bị hủy. Đóng chương trình!")
             return
 
         # Bước 2: Chuyển sang Menu điều khiển chính sau khi đăng nhập thành công
@@ -99,11 +106,9 @@ class MainApplication:
             choice = input("Nhập lựa chọn của bạn: ").strip()
 
             if choice == "1":
-                # Nhập trực tiếp hàm main() quét camera từ file gốc scanner.py của Tiên
                 from scanner import scanner
 
                 print("\n[HỆ THỐNG] Kích hoạt Camera từ file scanner.py...")
-                # Thay vì tự code camera, chạy hàm quét của file scanner và lấy mã vạch trả về
                 barcode = scanner.scan_barcode_from_camera()
 
                 if barcode:
@@ -111,11 +116,10 @@ class MainApplication:
                 else:
                     print("\n[HỆ THỐNG] Đã hủy quét hoặc không nhận diện được mã vạch.")
             elif choice == "2":
-                print("\nđăng xuất tài khoản")
+                print("\nĐã đăng xuất tài khoản. Hẹn gặp lại!")
                 break
             else:
                 print("[!] Lựa chọn không hợp lệ, vui lòng chọn lại.")
-
 
 if __name__ == "__main__":
     app = MainApplication()

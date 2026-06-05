@@ -83,3 +83,33 @@ class AccountBUS:
             return True, f"Lưu thành công! Nhưng các chất không có trong hệ thống:  {chuoi_loi}"
 
         return True, "Lưu profile thành công!"
+    
+    
+    def login_by_phone(self, phone_number, input_password):
+        # Lấy user theo SĐT
+        user = self.dao.get_account_by_phone(phone_number)
+        if user is None:
+            # Trả về False, Thông báo lỗi, và None cho user_id
+            return False, "Sai tài khoản hoặc mật khẩu!", None
+
+        db_password = getattr(user, 'mat_khau', None) or getattr(user, 'password', '')
+
+        if not db_password:
+            return False, "Tài khoản không có dữ liệu mật khẩu!", None
+
+        try:
+            if db_password.startswith("$2b$") or db_password.startswith("$2a$"):
+                is_match = bcrypt.checkpw(input_password.encode('utf-8'), db_password.encode('utf-8'))
+            else:
+                is_match = (db_password == input_password)
+
+            if is_match:
+                # Đăng nhập thành công, trả về kèm user.user_id để main.py lấy đi query sản phẩm
+                return True, "Đăng nhập thành công!", user.user_id
+            else:
+                return False, "Sai tài khoản hoặc mật khẩu!", None
+
+        except Exception as e:
+            if db_password == input_password:
+                return True, "Đăng nhập thành công!", user.user_id
+            return False, "Sai tài khoản hoặc mật khẩu!", None

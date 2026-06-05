@@ -56,3 +56,25 @@ class AccountDAO:
 
         conn.commit()
         conn.close()
+    
+    def get_account_by_phone(self, phone_number):
+        conn = database_config()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM TaiKhoan WHERE so_dien_thoai = ?", (phone_number,))
+        row = cursor.fetchone()
+
+        if row is None:
+            conn.close()
+            return None
+
+        account = AccountDTO(row.ma_nguoi_dung, row.ten_nguoi_dung, row.so_dien_thoai, row.mat_khau)
+
+        cursor.execute("SELECT ma_thanh_phan FROM ThanhPhanDiUng WHERE ma_nguoi_dung = ?", (row.ma_nguoi_dung,))
+        allergy_rows = cursor.fetchall()
+
+        for allergy in allergy_rows:
+            account.allergies.append(allergy.ma_thanh_phan)
+
+        conn.close()
+        return account
