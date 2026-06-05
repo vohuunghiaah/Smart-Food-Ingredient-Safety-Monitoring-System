@@ -2,7 +2,9 @@ numpy
 pandas
 pyzbar
 opencv-python
-bcrypt	
-uvicorn	
+bcrypt
+uvicorn
 python-dotenv
 deep-translator
+pyodbc
+requests

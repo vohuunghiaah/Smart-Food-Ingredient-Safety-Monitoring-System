@@ -1,5 +1,5 @@
 import pyodbc
-from IngredientDTO import IngredientDTO
+from ingredient.IngredientDTO import IngredientDTO
 from utils import database_config
 
 class IngredientDAO:

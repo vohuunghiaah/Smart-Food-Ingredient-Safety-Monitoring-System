@@ -1,6 +1,5 @@
-from cv2 import utils
-from AccountDTO import AccountDTO
-import utils.database_config  # Import module cấu hình kết nối vừa tạo
+
+from account.AccountDTO import AccountDTO
 from utils.database_config import database_config
 class AccountDAO:
     def get_account_by_id(self, user_id):

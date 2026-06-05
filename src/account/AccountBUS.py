@@ -1,5 +1,5 @@
 import bcrypt
-from AccountDAO import AccountDAO
+from account.AccountDAO import AccountDAO
 from ingredient.IngredientDAO import IngredientDAO
 
 class AccountBUS:

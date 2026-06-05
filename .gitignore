@@ -9,4 +9,5 @@
 *.tex
 __pycache__/
 .env
+venv
 .vscode
