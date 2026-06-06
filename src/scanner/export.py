@@ -6,7 +6,7 @@ from deep_translator import GoogleTranslator
 SERVER = 'DESKTOP-1PJL28F'
 DATABASE_NAME = 'FOOD'
 USERNAME = 'sa'
-PASSWORD = 'Tien@2208'
+PASSWORD = 'PASS'
 
 
 def get_connection_string():

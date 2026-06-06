@@ -65,39 +65,40 @@ def login_required(f):
 # Barcode Processing (upgraded with allergen check)
 # ============================================================
 def process_barcode(barcode_val):
-    """
-    Xử lý mã vạch: tra cứu sản phẩm + kiểm tra dị ứng cho user hiện tại.
-    """
+
     global current_product
-    if barcode_val == current_product["barcode"]:
+
+    if barcode_val == current_product["barcode"] and current_product["name"] is not None:
         return
 
-    current_product["barcode"] = barcode_val
-    current_product["warning_level"] = None
-    current_product["warning_message"] = None
-    current_product["matched_allergens"] = []
+    temp_product = {
+        "barcode": barcode_val,
+        "name": "Đang tải...",
+        "category": "Đang tải...",
+        "ingredients": [],
+        "warning_level": None,
+        "warning_message": None,
+        "matched_allergens": []
+    }
 
-    # --- Tra cứu sản phẩm ---
     db_rows = get_product_details(barcode_val)
 
     if db_rows:
-        current_product["name"] = db_rows[0][1]
-        current_product["category"] = db_rows[0][2]
-        current_product["ingredients"] = [item[3] for item in db_rows]
+        temp_product["name"] = db_rows[0][1]
+        temp_product["category"] = db_rows[0][2]
+        temp_product["ingredients"] = [item[3] for item in db_rows]
     else:
         food = get_product_from_openfoodfacts(barcode_val)
         if food:
-            current_product["name"] = food["name"]
-            current_product["category"] = food["category"]
-            current_product["ingredients"] = food["ingredients"]
+            temp_product["name"] = food["name"]
+            temp_product["category"] = food["category"]
+            temp_product["ingredients"] = food["ingredients"]
         else:
-            current_product["name"] = "Không tìm thấy"
-            current_product["category"] = "Không tìm thấy"
-            current_product["ingredients"] = []
+            temp_product["name"] = "Không tìm thấy"
+            temp_product["category"] = "Không tìm thấy"
+            temp_product["ingredients"] = []
 
-    # --- Kiểm tra dị ứng nếu user đang đăng nhập ---
-    # Sẽ được cập nhật khi get_data được gọi với session
-
+    current_product = temp_product
 
 def check_allergens_for_current_user(user_id, barcode_val):
     """
@@ -313,11 +314,27 @@ def get_data():
     """
     global current_product
 
-    # Kiểm tra dị ứng nếu có barcode mới và user đang login
     if current_product["barcode"] and current_product["warning_level"] is None:
         user_id = session.get('user_id')
         if user_id:
-            check_allergens_for_current_user(user_id, current_product["barcode"])
+            if current_product["name"] != "Không tìm thấy":
+
+                result = allergen_bus._check_allergens(user_id, {
+                    "id": current_product["barcode"],
+                    "name": current_product["name"],
+                    "group": current_product["category"]
+                })
+
+                current_product["warning_level"] = result.warning_level
+                current_product["warning_message"] = result.warning_message
+                current_product["matched_allergens"] = result.matched_allergens
+
+                history_dao.add_scan_record(user_id, current_product["barcode"], current_product["name"],
+                                            result.warning_level)
+            else:
+                current_product["warning_level"] = "NOT_FOUND"
+                current_product[
+                    "warning_message"] = f"Không tìm thấy sản phẩm với mã vạch: {current_product['barcode']}"
 
     return jsonify(current_product)
 
