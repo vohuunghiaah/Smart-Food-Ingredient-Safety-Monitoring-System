@@ -8,4 +8,4 @@ python-dotenv
 deep-translator
 pyodbc
 requests
-Flask
+flask

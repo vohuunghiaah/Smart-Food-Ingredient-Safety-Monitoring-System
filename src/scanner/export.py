@@ -4,7 +4,7 @@ import requests
 from deep_translator import GoogleTranslator
 
 SERVER = 'DESKTOP-1PJL28F'
-DATABASE_NAME = 'AllergyDB'
+DATABASE_NAME = 'FOOD'
 USERNAME = 'sa'
 PASSWORD = 'Tien@2208'
 

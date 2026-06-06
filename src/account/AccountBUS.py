@@ -1,5 +1,7 @@
+import re
 import bcrypt
 from account.AccountDAO import AccountDAO
+from account.AccountDTO import AccountDTO
 from ingredient.IngredientDAO import IngredientDAO
 
 class AccountBUS:
@@ -113,3 +115,108 @@ class AccountBUS:
             if db_password == input_password:
                 return True, "Đăng nhập thành công!", user.user_id
             return False, "Sai tài khoản hoặc mật khẩu!", None
+
+    # ===================================================================
+    # CÁC PHƯƠNG THỨC MỚI CHO WEB APP
+    # ===================================================================
+
+    def register_by_phone(self, user_name, phone_number, password):
+        """
+        Đăng ký tài khoản mới bằng số điện thoại.
+        Validate đầu vào, hash password, tự sinh mã user.
+        """
+        # Validate tên
+        if not user_name or len(user_name.strip()) < 2:
+            return False, "Họ tên phải có ít nhất 2 ký tự!"
+
+        # Validate SĐT: 10 số, bắt đầu bằng 0
+        phone_number = phone_number.strip()
+        if not re.match(r'^0\d{9}$', phone_number):
+            return False, "Số điện thoại không hợp lệ! (10 số, bắt đầu bằng 0)"
+
+        # Validate mật khẩu
+        if not password or len(password) < 6:
+            return False, "Mật khẩu phải có ít nhất 6 ký tự!"
+
+        # Kiểm tra SĐT đã tồn tại
+        if self.dao.phone_exists(phone_number):
+            return False, "Số điện thoại này đã được đăng ký!"
+
+        # Tự sinh mã user
+        new_user_id = self.dao.generate_next_user_id()
+
+        # Hash mật khẩu
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+        # Tạo DTO và lưu
+        account = AccountDTO(
+            user_id=new_user_id,
+            user_name=user_name.strip(),
+            phone_number=phone_number,
+            password=hashed_password.decode('utf-8')
+        )
+        self.dao.add_account(account)
+
+        return True, "Đăng ký thành công! Vui lòng đăng nhập."
+
+    def get_user_profile(self, user_id):
+        """
+        Lấy thông tin profile của user bao gồm tên các chất dị ứng.
+        Trả về dict chứa thông tin user + danh sách tên chất dị ứng.
+        """
+        user = self.dao.get_account_by_id(user_id)
+        if user is None:
+            return None
+
+        # Lấy tên thành phần dị ứng từ mã
+        allergy_names = []
+        all_ingredients = self.ingredient_dao.get_all_ingredients()
+        ingredient_map = {ing.ingredient_id: ing.ingredient_name for ing in all_ingredients}
+
+        for allergy_id in user.allergies:
+            name = ingredient_map.get(allergy_id, allergy_id)
+            allergy_names.append(name)
+
+        return {
+            "user_id": user.user_id,
+            "user_name": user.user_name,
+            "phone_number": user.phone_number,
+            "allergies": allergy_names,
+            "allergy_ids": user.allergies
+        }
+
+    def update_profile_web(self, user_id, new_name, allergy_names_list):
+        """
+        Cập nhật hồ sơ từ web (không đổi SĐT, chỉ đổi tên + dị ứng).
+        allergy_names_list: list các tên thành phần dị ứng.
+        """
+        user = self.dao.get_account_by_id(user_id)
+        if user is None:
+            return False, "Không tìm thấy tài khoản!"
+
+        # Cập nhật tên
+        if new_name and len(new_name.strip()) >= 2:
+            user.user_name = new_name.strip()
+
+        # Chuyển tên thành phần → mã thành phần
+        allergy_ids = []
+        invalid_names = []
+
+        for name in allergy_names_list:
+            name = name.strip()
+            if not name:
+                continue
+            ingredient_id = self.ingredient_dao.get_ingredient_id_by_name(name)
+            if ingredient_id is not None:
+                if ingredient_id not in allergy_ids:
+                    allergy_ids.append(ingredient_id)
+            else:
+                invalid_names.append(name)
+
+        user.allergies = allergy_ids
+        self.dao.update_profile_and_allergies(user)
+
+        if invalid_names:
+            return True, f"Đã lưu! Nhưng không tìm thấy: {', '.join(invalid_names)}"
+
+        return True, "Cập nhật hồ sơ thành công!"

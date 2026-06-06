@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Đăng nhập{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card glass-card fade-in">
+        <div class="auth-header">
+            <div class="auth-logo">🛡️</div>
+            <h1>Chào mừng trở lại</h1>
+            <p>Đăng nhập vào hệ thống cảnh báo dị ứng thực phẩm</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('login') }}" id="login-form">
+            <div class="form-group">
+                <label class="form-label" for="phone">Số điện thoại</label>
+                <input type="tel" 
+                       class="form-input" 
+                       id="phone" 
+                       name="phone" 
+                       placeholder="Nhập số điện thoại (VD: 0912345678)" 
+                       maxlength="10"
+                       pattern="0[0-9]{9}"
+                       required
+                       autocomplete="tel"
+                       value="{{ request.form.get('phone', '') }}">
+                <span class="form-hint">Số điện thoại 10 chữ số, bắt đầu bằng 0</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Mật khẩu</label>
+                <div class="password-wrapper">
+                    <input type="password" 
+                           class="form-input" 
+                           id="password" 
+                           name="password" 
+                           placeholder="Nhập mật khẩu" 
+                           required
+                           autocomplete="current-password">
+                    <button type="button" class="password-toggle" onclick="togglePassword('password', this)">👁️</button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-login">
+                🔐 Đăng nhập
+            </button>
+        </form>
+
+        <div class="auth-divider">hoặc</div>
+
+        <div class="auth-footer">
+            Chưa có tài khoản? 
+            <a href="{{ url_for('register') }}"><strong>Đăng ký ngay</strong></a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.textContent = '🙈';
+        } else {
+            input.type = 'password';
+            btn.textContent = '👁️';
+        }
+    }
+
+    // Restrict phone input to digits only
+    document.getElementById('phone').addEventListener('input', function(e) {
+        this.value = this.value.replace(/[^0-9]/g, '');
+    });
+</script>
+{% endblock %}

@@ -78,3 +78,42 @@ class AccountDAO:
 
         conn.close()
         return account
+
+    def phone_exists(self, phone_number):
+        """Kiểm tra số điện thoại đã được đăng ký chưa."""
+        conn = database_config()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM TaiKhoan WHERE so_dien_thoai = ?", (phone_number,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count > 0
+
+    def generate_next_user_id(self):
+        """Tự sinh mã người dùng tiếp theo (U01, U02, ...)."""
+        conn = database_config()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT TOP 1 ma_nguoi_dung FROM TaiKhoan 
+            ORDER BY CAST(SUBSTRING(ma_nguoi_dung, 2, LEN(ma_nguoi_dung) - 1) AS INT) DESC
+        """)
+        row = cursor.fetchone()
+        conn.close()
+
+        if row is None:
+            return "U01"
+        
+        # Lấy số cuối cùng, +1
+        last_num = int(row.ma_nguoi_dung[1:])
+        next_num = last_num + 1
+        return f"U{next_num:02d}"
+
+    def update_password(self, user_id, new_hashed_password):
+        """Cập nhật mật khẩu đã hash cho user."""
+        conn = database_config()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE TaiKhoan SET mat_khau = ? WHERE ma_nguoi_dung = ?",
+            (new_hashed_password, user_id)
+        )
+        conn.commit()
+        conn.close()

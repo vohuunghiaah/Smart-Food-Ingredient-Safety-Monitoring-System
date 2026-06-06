@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Lịch sử quét{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="page-header fade-in">
+        <h1>📋 Lịch Sử Quét Sản Phẩm</h1>
+        <p>Các sản phẩm bạn đã quét mã vạch gần đây</p>
+    </div>
+
+    <div class="glass-card slide-up" style="padding: 24px;">
+        {% if history and history|length > 0 %}
+        <div class="history-table-container">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Sản phẩm</th>
+                        <th>Mã vạch</th>
+                        <th>Mức cảnh báo</th>
+                        <th>Thời gian</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in history %}
+                    <tr v-for="(item, index) in items" :key="index" class="fade-in" :style="{ animationDelay: (index * 0.05) + 's' }">
+                        <td style="color: var(--text-muted);">{{ loop.index }}</td>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ item.product_name }}</td>
+                        <td>
+                            <code style="background: var(--bg-glass); padding: 4px 8px; border-radius: 6px; font-size: 13px;">{{ item.barcode }}</code>
+                        </td>
+                        <td>
+                            {% if item.warning_level == 'SAFE' %}
+                                <span class="badge badge-safe">✅ An toàn</span>
+                            {% elif item.warning_level == 'LOW' %}
+                                <span class="badge badge-low">⚠️ Thấp</span>
+                            {% elif item.warning_level == 'MEDIUM' %}
+                                <span class="badge badge-medium">🟠 Trung bình</span>
+                            {% elif item.warning_level == 'HIGH' %}
+                                <span class="badge badge-high">🔴 Cao</span>
+                            {% elif item.warning_level == 'CRITICAL' %}
+                                <span class="badge badge-critical">🚨 Nguy hiểm</span>
+                            {% else %}
+                                <span class="badge badge-safe">{{ item.warning_level }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 13px;">{{ item.scan_time }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-text">Bạn chưa quét sản phẩm nào</div>
+            <a href="{{ url_for('scanner_page') }}" class="btn btn-primary mt-3">📷 Quét mã vạch ngay</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

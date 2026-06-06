@@ -1,0 +1,544 @@
+{% extends "base.html" %}
+
+{% block title %}Hồ sơ cá nhân{% endblock %}
+
+{% block head %}
+<style>
+    .profile-grid {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+    @media (max-width: 800px) {
+        .profile-grid { grid-template-columns: 1fr; }
+    }
+
+    .right-column {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    /* Current Allergies Section */
+    .allergy-section {
+        padding: 28px;
+    }
+    .allergy-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+    .allergy-section-header h2 {
+        font-size: 18px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .allergy-count-badge {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    /* Allergy list view */
+    .allergy-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .allergy-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: var(--bg-glass);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        transition: all var(--transition-fast);
+    }
+    .allergy-item:hover {
+        background: var(--bg-glass-hover);
+        border-color: rgba(239, 68, 68, 0.2);
+    }
+    .allergy-item-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .allergy-item-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    .allergy-item-name {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    .allergy-item-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .btn-remove-allergy {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.15);
+        color: #f87171;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .btn-remove-allergy:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    /* Empty allergies */
+    .allergy-empty {
+        text-align: center;
+        padding: 32px 16px;
+        color: var(--text-muted);
+    }
+    .allergy-empty-icon {
+        font-size: 36px;
+        margin-bottom: 8px;
+        opacity: 0.5;
+    }
+    .allergy-empty-text {
+        font-size: 14px;
+    }
+
+    /* Add allergy section */
+    .add-allergy-section {
+        padding: 24px;
+    }
+    .add-allergy-section h2 {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Edit name section */
+    .edit-info-section {
+        padding: 24px;
+    }
+    .edit-info-section h2 {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Confirm dialog */
+    .confirm-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 3000;
+        align-items: center;
+        justify-content: center;
+    }
+    .confirm-overlay.show {
+        display: flex;
+    }
+    .confirm-dialog {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius-lg);
+        padding: 28px;
+        max-width: 380px;
+        width: 90%;
+        text-align: center;
+        box-shadow: var(--shadow-lg);
+    }
+    .confirm-dialog-icon {
+        font-size: 40px;
+        margin-bottom: 12px;
+    }
+    .confirm-dialog h3 {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+    }
+    .confirm-dialog p {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+        line-height: 1.5;
+    }
+    .confirm-dialog-btns {
+        display: flex;
+        gap: 10px;
+    }
+    .confirm-dialog-btns .btn {
+        flex: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="page-header fade-in">
+        <h1>👤 Hồ Sơ Cá Nhân</h1>
+        <p>Quản lý thông tin cá nhân và danh sách thành phần dị ứng</p>
+    </div>
+
+    <div class="profile-grid">
+        <!-- LEFT: Profile Info Card -->
+        <div class="profile-card glass-card slide-up">
+            <div class="profile-avatar" id="profile-avatar">
+                {{ profile.user_name[0] if profile else 'U' }}
+            </div>
+            <div class="profile-name" id="display-name">{{ profile.user_name if profile else 'Người dùng' }}</div>
+            <div class="profile-phone">📱 {{ profile.phone_number if profile else '---' }}</div>
+
+            <div class="profile-stat">
+                <div class="stat-item">
+                    <div class="stat-value" id="allergy-count">{{ profile.allergies|length if profile else 0 }}</div>
+                    <div class="stat-label">Chất dị ứng</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ scan_count }}</div>
+                    <div class="stat-label">Lần quét</div>
+                </div>
+            </div>
+
+            <!-- Edit Name -->
+            <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <form method="POST" action="{{ url_for('profile_page') }}" id="name-form">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label class="form-label" for="user-name">Họ và tên</label>
+                        <input type="text" 
+                               class="form-input" 
+                               id="user-name" 
+                               name="user_name" 
+                               value="{{ profile.user_name if profile else '' }}"
+                               placeholder="Nhập họ và tên"
+                               required
+                               minlength="2">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label class="form-label">Số điện thoại</label>
+                        <input type="text" class="form-input" value="{{ profile.phone_number if profile else '' }}" disabled style="opacity: 0.5;">
+                        <span class="form-hint">SĐT không thể thay đổi</span>
+                    </div>
+                    <!-- Hidden: giữ nguyên danh sách dị ứng hiện tại khi chỉ đổi tên -->
+                    <input type="hidden" name="allergies" value="{{ profile.allergies|join(',') if profile else '' }}">
+                    <button type="submit" class="btn btn-primary btn-block btn-sm">
+                        💾 Lưu tên
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="right-column">
+            <!-- SECTION 1: Current Allergies (Xem + Xóa) -->
+            <div class="allergy-section glass-card slide-up" style="animation-delay: 0.1s;">
+                <div class="allergy-section-header">
+                    <h2>⚠️ Thành phần dị ứng của bạn</h2>
+                    <span class="allergy-count-badge" id="allergy-badge">
+                        {{ profile.allergies|length if profile else 0 }} chất
+                    </span>
+                </div>
+
+                <div class="allergy-list" id="allergy-list">
+                    {% if profile and profile.allergies and profile.allergies|length > 0 %}
+                        {% for allergy in profile.allergies %}
+                        <div class="allergy-item fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s;" data-name="{{ allergy }}" id="allergy-item-{{ loop.index0 }}">
+                            <div class="allergy-item-info">
+                                <div class="allergy-item-icon">🚫</div>
+                                <div>
+                                    <div class="allergy-item-name">{{ allergy }}</div>
+                                    <div class="allergy-item-label">Thành phần dị ứng</div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-remove-allergy" onclick="confirmRemoveAllergy('{{ allergy }}', 'allergy-item-{{ loop.index0 }}')">
+                                🗑️ Xóa
+                            </button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="allergy-empty" id="allergy-empty">
+                            <div class="allergy-empty-icon">✅</div>
+                            <div class="allergy-empty-text">Bạn chưa đăng ký thành phần dị ứng nào</div>
+                            <div class="allergy-empty-text" style="margin-top: 4px; font-size: 12px; color: var(--text-muted);">Thêm ở phần bên dưới ↓</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- SECTION 2: Add New Allergy -->
+            <div class="add-allergy-section glass-card slide-up" style="animation-delay: 0.15s;">
+                <h2>➕ Thêm thành phần dị ứng mới</h2>
+                
+                <form method="POST" action="{{ url_for('profile_page') }}" id="allergy-form">
+                    <!-- Giữ nguyên tên hiện tại -->
+                    <input type="hidden" name="user_name" value="{{ profile.user_name if profile else '' }}">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Tìm và chọn thành phần</label>
+                        <div class="autocomplete-wrapper">
+                            <input type="text" 
+                                   class="form-input" 
+                                   id="allergy-input"
+                                   placeholder="Gõ tên thành phần (VD: Sữa bò, Đậu phộng, Tôm...)"
+                                   autocomplete="off">
+                            <div class="autocomplete-list" id="autocomplete-list"></div>
+                        </div>
+                        <span class="form-hint">Chọn từ danh sách gợi ý bên dưới — có thể thêm nhiều chất cùng lúc</span>
+                    </div>
+
+                    <!-- Tags mới được chọn -->
+                    <div style="margin-bottom: 16px;">
+                        <label class="form-label" style="margin-bottom: 8px;">Chất sẽ được thêm:</label>
+                        <div class="allergy-tags" id="new-allergy-tags">
+                            <span id="no-new-tag" style="font-size: 13px; color: var(--text-muted);">Chưa chọn chất nào...</span>
+                        </div>
+                    </div>
+
+                    <!-- Hidden input chứa toàn bộ danh sách (cũ + mới) -->
+                    <input type="hidden" name="allergies" id="allergies-hidden" value="{{ profile.allergies|join(',') if profile else '' }}">
+
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-save-allergy" disabled>
+                        💾 Lưu thay đổi dị ứng
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Remove Dialog -->
+<div class="confirm-overlay" id="confirm-overlay">
+    <div class="confirm-dialog">
+        <div class="confirm-dialog-icon">🗑️</div>
+        <h3>Xóa thành phần dị ứng?</h3>
+        <p>Bạn có chắc muốn xóa <strong id="confirm-name"></strong> khỏi danh sách dị ứng?</p>
+        <div class="confirm-dialog-btns">
+            <button class="btn btn-secondary" onclick="closeConfirm()">Hủy</button>
+            <button class="btn btn-danger" id="btn-confirm-remove" onclick="executeRemove()">Xóa</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ===== State =====
+    let availableIngredients = [];
+    let currentAllergies = {{ profile.allergies|tojson if profile else '[]' }};
+    let pendingRemoveName = null;
+    let pendingRemoveId = null;
+
+    const allergyInput = document.getElementById('allergy-input');
+    const autocompleteList = document.getElementById('autocomplete-list');
+    const newAllergyTags = document.getElementById('new-allergy-tags');
+    const allergiesHidden = document.getElementById('allergies-hidden');
+    const btnSave = document.getElementById('btn-save-allergy');
+
+    // ===== Load ingredients for autocomplete =====
+    fetch('/api/ingredients')
+        .then(r => r.json())
+        .then(data => { availableIngredients = data.ingredients || []; });
+
+    // ===== Autocomplete =====
+    allergyInput.addEventListener('input', function() {
+        const query = this.value.trim().toLowerCase();
+        autocompleteList.innerHTML = '';
+
+        if (query.length < 1) {
+            autocompleteList.classList.remove('show');
+            return;
+        }
+
+        const allCurrent = getAllAllergyNames();
+        const filtered = availableIngredients.filter(ing => 
+            ing.toLowerCase().includes(query) && !allCurrent.includes(ing)
+        );
+
+        if (filtered.length === 0) {
+            autocompleteList.classList.remove('show');
+            return;
+        }
+
+        filtered.slice(0, 8).forEach(ing => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-item';
+            div.textContent = ing;
+            div.addEventListener('click', () => {
+                addNewTag(ing);
+                allergyInput.value = '';
+                autocompleteList.classList.remove('show');
+                allergyInput.focus();
+            });
+            autocompleteList.appendChild(div);
+        });
+        autocompleteList.classList.add('show');
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.autocomplete-wrapper')) {
+            autocompleteList.classList.remove('show');
+        }
+    });
+
+    // ===== Get all allergy names (current + new tags) =====
+    function getAllAllergyNames() {
+        const newTags = Array.from(newAllergyTags.querySelectorAll('.allergy-tag'))
+            .map(t => t.dataset.name);
+        return [...currentAllergies, ...newTags];
+    }
+
+    // ===== Add new allergy tag =====
+    function addNewTag(name) {
+        // Remove "Chưa chọn" placeholder
+        const placeholder = document.getElementById('no-new-tag');
+        if (placeholder) placeholder.remove();
+
+        const tag = document.createElement('span');
+        tag.className = 'allergy-tag';
+        tag.dataset.name = name;
+        tag.innerHTML = `${name} <button type="button" class="remove-tag" onclick="removeNewTag(this)">×</button>`;
+        newAllergyTags.appendChild(tag);
+        
+        updateHiddenField();
+        updateBtnState();
+    }
+
+    // ===== Remove new tag (before saving) =====
+    function removeNewTag(btn) {
+        btn.parentElement.remove();
+        updateHiddenField();
+        updateBtnState();
+
+        // Restore placeholder if empty
+        if (newAllergyTags.querySelectorAll('.allergy-tag').length === 0) {
+            const span = document.createElement('span');
+            span.id = 'no-new-tag';
+            span.style.cssText = 'font-size: 13px; color: var(--text-muted);';
+            span.textContent = 'Chưa chọn chất nào...';
+            newAllergyTags.appendChild(span);
+        }
+    }
+
+    // ===== Update hidden field with all allergies =====
+    function updateHiddenField() {
+        allergiesHidden.value = getAllAllergyNames().join(',');
+    }
+
+    // ===== Enable/disable save button =====
+    function updateBtnState() {
+        const hasNew = newAllergyTags.querySelectorAll('.allergy-tag').length > 0;
+        btnSave.disabled = !hasNew;
+        if (hasNew) {
+            btnSave.style.opacity = '1';
+        } else {
+            btnSave.style.opacity = '0.5';
+        }
+    }
+
+    // ===== Remove existing allergy (with confirm dialog) =====
+    function confirmRemoveAllergy(name, elementId) {
+        pendingRemoveName = name;
+        pendingRemoveId = elementId;
+        document.getElementById('confirm-name').textContent = name;
+        document.getElementById('confirm-overlay').classList.add('show');
+    }
+
+    function closeConfirm() {
+        document.getElementById('confirm-overlay').classList.remove('show');
+        pendingRemoveName = null;
+        pendingRemoveId = null;
+    }
+
+    function executeRemove() {
+        if (!pendingRemoveName) return;
+
+        // Remove from currentAllergies
+        currentAllergies = currentAllergies.filter(a => a !== pendingRemoveName);
+
+        // Remove DOM element with animation
+        const el = document.getElementById(pendingRemoveId);
+        if (el) {
+            el.style.transition = 'all 0.3s ease';
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(-20px)';
+            setTimeout(() => {
+                el.remove();
+                // Show empty state if no more items
+                if (currentAllergies.length === 0) {
+                    document.getElementById('allergy-list').innerHTML = `
+                        <div class="allergy-empty" id="allergy-empty">
+                            <div class="allergy-empty-icon">✅</div>
+                            <div class="allergy-empty-text">Bạn chưa đăng ký thành phần dị ứng nào</div>
+                            <div class="allergy-empty-text" style="margin-top: 4px; font-size: 12px; color: var(--text-muted);">Thêm ở phần bên dưới ↓</div>
+                        </div>
+                    `;
+                }
+            }, 300);
+        }
+
+        // Update counts
+        document.getElementById('allergy-count').textContent = currentAllergies.length;
+        document.getElementById('allergy-badge').textContent = currentAllergies.length + ' chất';
+
+        // Submit form to save changes to DB
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("profile_page") }}';
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = 'hidden';
+        nameInput.name = 'user_name';
+        nameInput.value = '{{ profile.user_name if profile else "" }}';
+        form.appendChild(nameInput);
+        
+        const allergyInput = document.createElement('input');
+        allergyInput.type = 'hidden';
+        allergyInput.name = 'allergies';
+        allergyInput.value = currentAllergies.join(',');
+        form.appendChild(allergyInput);
+        
+        document.body.appendChild(form);
+
+        closeConfirm();
+        form.submit();
+    }
+
+    // ===== Sync before form submit =====
+    document.getElementById('allergy-form').addEventListener('submit', function() {
+        updateHiddenField();
+    });
+
+    // Init button state
+    updateBtnState();
+</script>
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Quét Mã Vạch{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="page-header fade-in">
+        <h1>📷 Quét Mã Vạch Sản Phẩm</h1>
+        <p>Hướng camera vào mã vạch sản phẩm để kiểm tra thành phần và cảnh báo dị ứng</p>
+    </div>
+
+    <div class="scanner-layout">
+        <!-- Camera Section -->
+        <div class="video-container glass-card slide-up">
+            <div class="video-box" id="video-box">
+                <img src="{{ url_for('video_feed') }}" alt="Camera Stream" id="camera-stream">
+            </div>
+            <div class="video-status">
+                <span class="pulse-dot"></span>
+                Đang quét tự động — EAN13 / CODE128
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="result-container glass-card slide-up" style="animation-delay: 0.1s;">
+            <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">📊 Kết Quả Phân Tích</h2>
+
+            <!-- Warning Panel -->
+            <div class="warning-panel warning-safe" id="warning-panel" style="display: none;">
+                <div class="warning-level">
+                    <span class="warning-icon" id="warning-icon">✅</span>
+                    <span class="warning-label" id="warning-label">AN TOÀN</span>
+                </div>
+                <div class="warning-message" id="warning-message">Sản phẩm không chứa thành phần dị ứng của bạn.</div>
+                <div class="warning-matched" id="warning-matched" style="display: none;">
+                    <div class="warning-matched-title">Thành phần dị ứng phát hiện:</div>
+                    <div id="matched-list"></div>
+                </div>
+            </div>
+
+            <!-- Barcode -->
+            <div class="info-card">
+                <div class="info-label">Mã vạch quét được</div>
+                <div class="info-value" id="res-barcode">Đang đợi quét sản phẩm...</div>
+            </div>
+
+            <!-- Product Name -->
+            <div class="info-card">
+                <div class="info-label">Tên sản phẩm</div>
+                <div class="info-value" id="res-name">---</div>
+            </div>
+
+            <!-- Category -->
+            <div class="info-card">
+                <div class="info-label">Phân nhóm (Category)</div>
+                <div class="info-value" id="res-category">---</div>
+            </div>
+
+            <!-- Ingredients -->
+            <div class="ingredients-section">
+                <div class="info-label">Danh sách thành phần</div>
+                <ul class="ingredients-list" id="res-ingredients">
+                    <li style="color: var(--text-muted); border: none;">Chưa có dữ liệu...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const WARNING_CONFIG = {
+        'SAFE':     { icon: '✅', label: 'AN TOÀN',       class: 'warning-safe' },
+        'LOW':      { icon: '⚠️', label: 'THẤP',          class: 'warning-low' },
+        'MEDIUM':   { icon: '🟠', label: 'TRUNG BÌNH',    class: 'warning-medium' },
+        'HIGH':     { icon: '🔴', label: 'CAO',           class: 'warning-high' },
+        'CRITICAL': { icon: '🚨', label: 'NGUY HIỂM',     class: 'warning-critical' }
+    };
+
+    let lastBarcode = null;
+
+    function updateResults() {
+        fetch('/get_data')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.barcode) return;
+
+                // Only update if barcode changed
+                if (data.barcode === lastBarcode) return;
+                lastBarcode = data.barcode;
+
+                document.getElementById('res-barcode').textContent = data.barcode;
+                document.getElementById('res-name').textContent = data.name || 'Không xác định';
+                document.getElementById('res-category').textContent = data.category || 'Không xác định';
+
+                // Ingredients
+                const ul = document.getElementById('res-ingredients');
+                ul.innerHTML = '';
+                if (data.ingredients && data.ingredients.length > 0) {
+                    data.ingredients.forEach(ing => {
+                        const li = document.createElement('li');
+                        li.textContent = ing;
+                        
+                        // Highlight allergenic ingredients
+                        if (data.matched_allergens) {
+                            const matchedNames = data.matched_allergens.map(m => m.name.toLowerCase());
+                            if (matchedNames.some(n => ing.toLowerCase().includes(n) || n.includes(ing.toLowerCase()))) {
+                                li.style.color = 'var(--color-high)';
+                                li.style.fontWeight = '600';
+                                li.textContent = '⚠️ ' + ing;
+                            }
+                        }
+                        
+                        ul.appendChild(li);
+                    });
+                } else {
+                    ul.innerHTML = '<li style="color: var(--text-muted); border: none;">Không tìm thấy thành phần</li>';
+                }
+
+                // Warning Panel
+                const panel = document.getElementById('warning-panel');
+                const level = data.warning_level || 'SAFE';
+                const config = WARNING_CONFIG[level] || WARNING_CONFIG['SAFE'];
+
+                panel.style.display = 'block';
+                panel.className = 'warning-panel ' + config.class;
+                document.getElementById('warning-icon').textContent = config.icon;
+                document.getElementById('warning-label').textContent = config.label;
+                document.getElementById('warning-message').textContent = data.warning_message || '';
+
+                // Matched allergens
+                const matchedDiv = document.getElementById('warning-matched');
+                const matchedList = document.getElementById('matched-list');
+                
+                if (data.matched_allergens && data.matched_allergens.length > 0) {
+                    matchedDiv.style.display = 'block';
+                    matchedList.innerHTML = '';
+                    data.matched_allergens.forEach(m => {
+                        const span = document.createElement('span');
+                        span.className = 'warning-matched-item';
+                        span.textContent = '⚠️ ' + m.name + (m.matched_by !== 'direct' ? ' (' + m.matched_by + ')' : '');
+                        matchedList.appendChild(span);
+                    });
+                } else {
+                    matchedDiv.style.display = 'none';
+                }
+            })
+            .catch(err => console.error('Fetch error:', err));
+    }
+
+    // Poll every 1 second
+    setInterval(updateResults, 1000);
+</script>
+{% endblock %}
