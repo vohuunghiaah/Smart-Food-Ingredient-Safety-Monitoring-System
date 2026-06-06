@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 # Import
 from account.AccountBUS import AccountBUS
 from allergen_checker.AllergenCheckerBUS import AllergenCheckerBUS
-from scanner.scanner import get_product_from_openfoodfacts
+from scanner.export import get_product_from_openfoodfacts
 
 class MainApplication:
     def __init__(self):
@@ -106,10 +106,10 @@ class MainApplication:
             choice = input("Nhập lựa chọn của bạn: ").strip()
 
             if choice == "1":
-                from scanner import scanner
+                from scanner.scanner import scan_barcode_from_camera
 
                 print("\n[HỆ THỐNG] Kích hoạt Camera từ file scanner.py...")
-                barcode = scanner.scan_barcode_from_camera()
+                barcode = scan_barcode_from_camera()  
 
                 if barcode:
                     self.run_check_flow(barcode)
