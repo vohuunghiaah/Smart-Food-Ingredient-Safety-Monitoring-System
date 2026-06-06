@@ -58,6 +58,7 @@ def login_required(f):
             flash('Vui lòng đăng nhập để tiếp tục.', 'warning')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
+
     return decorated
 
 
@@ -65,7 +66,6 @@ def login_required(f):
 # Barcode Processing (upgraded with allergen check)
 # ============================================================
 def process_barcode(barcode_val):
-
     global current_product
 
     if barcode_val == current_product["barcode"] and current_product["name"] is not None:
@@ -100,6 +100,7 @@ def process_barcode(barcode_val):
 
     current_product = temp_product
 
+
 def check_allergens_for_current_user(user_id, barcode_val):
     """
     Kiểm tra dị ứng cho user hiện tại và cập nhật current_product.
@@ -107,7 +108,7 @@ def check_allergens_for_current_user(user_id, barcode_val):
     global current_product
 
     result = allergen_bus.check_allergens_by_barcode(user_id, barcode_val)
-    
+
     current_product["warning_level"] = result.warning_level
     current_product["warning_message"] = result.warning_message
     current_product["matched_allergens"] = result.matched_allergens
