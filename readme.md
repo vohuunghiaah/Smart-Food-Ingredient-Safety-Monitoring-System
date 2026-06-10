@@ -125,7 +125,6 @@ cd src
 python web_app.py
 ```
 
-Truy cập trình duyệt: **http://localhost:5000**
 
 ### Tài khoản mẫu
 
