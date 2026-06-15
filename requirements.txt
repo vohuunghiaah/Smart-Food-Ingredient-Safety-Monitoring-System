@@ -19,3 +19,5 @@ requests
 
 # Utilities
 python-dotenv
+
+threading

@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import cv2
+import threading
 from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, session, flash
 from pyzbar.pyzbar import decode, ZBarSymbol
 
@@ -45,6 +46,31 @@ current_product = {
     "matched_allergens": []
 }
 
+# ============================================================
+# Business Layer Instances
+# ============================================================
+account_bus = AccountBUS()
+allergen_bus = AllergenCheckerBUS()
+ingredient_dao = IngredientDAO()
+history_dao = HistoryDAO()
+
+# Current scanned product (shared state for camera stream)
+current_product = {
+    "barcode": None,
+    "name": None,
+    "category": None,
+    "ingredients": [],
+    "warning_level": None,
+    "warning_message": None,
+    "matched_allergens": []
+}
+
+# --- CHÈN THÊM 2 DÒNG NÀY ĐỂ TẠO KHÓA CHẶN CAMERA ---
+import threading
+
+is_processing = False
+processing_lock = threading.Lock()
+
 
 # ============================================================
 # Decorators
@@ -63,26 +89,65 @@ def login_required(f):
 
 
 # ============================================================
-# Barcode Processing (upgraded with allergen check)
+# Barcode Processing (THAY THẾ TOÀN BỘ HÀM NÀY)
 # ============================================================
 def process_barcode(barcode_val):
-    global current_product
+    global current_product, is_processing
 
-    if barcode_val == current_product["barcode"] and current_product["name"] is not None:
+    # 1. Xóa khoảng trắng thừa của mã vạch để tránh lệch dữ liệu SQL
+    barcode_val = str(barcode_val).strip()
+
+    # 2. Nếu mã vạch trùng với sản phẩm đang xử lý/hiển thị thì bỏ qua
+    if barcode_val == current_product["barcode"] and current_product["name"] not in [None, "Đang tải..."]:
         return
 
-    temp_product = {
-        "barcode": barcode_val,
-        "name": "Đang tải...",
-        "category": "Đang tải...",
-        "ingredients": [],
-        "warning_level": None,
-        "warning_message": None,
-        "matched_allergens": []
-    }
+    # 3. Khóa luồng: Nếu camera đang bận xử lý frame trước thì frame này bỏ qua
+    with processing_lock:
+        if is_processing:
+            return
+        is_processing = True
 
-    db_rows = get_product_details(barcode_val)
+    try:
+        print(f"\n[WEB APP] ---> Bắt đầu kiểm tra mã vạch: {barcode_val}")
 
+        temp_product = {
+            "barcode": barcode_val,
+            "name": "Đang tải...",
+            "category": "Đang tải...",
+            "ingredients": [],
+            "warning_level": None,
+            "warning_message": None,
+            "matched_allergens": []
+        }
+
+        # 4. Kiểm tra trong Database trước
+        db_rows = get_product_details(barcode_val)
+        print(f"[WEB APP] Kết quả từ Database: {db_rows}")
+
+        if db_rows:
+            print("[WEB APP] -> TÌM THẤY TRONG DATABASE! Không dùng API.")
+            temp_product["name"] = db_rows[0][1]
+            temp_product["category"] = db_rows[0][2]
+            temp_product["ingredients"] = [item[3] for item in db_rows]
+        else:
+            print("[WEB APP] -> Không thấy trong DB. Tiến hành gọi API OpenFoodFacts...")
+            food = get_product_from_openfoodfacts(barcode_val)
+            if food:
+                temp_product["name"] = food["name"]
+                temp_product["category"] = food["category"]
+                temp_product["ingredients"] = food["ingredients"]
+            else:
+                temp_product["name"] = "Không tìm thấy"
+                temp_product["category"] = "Không tìm thấy"
+                temp_product["ingredients"] = []
+
+        current_product = temp_product
+
+    except Exception as e:
+        print(f"[WEB APP ERROR] Lỗi: {e}")
+    finally:
+        # 5. Xử lý xong hoàn toàn mới mở khóa cho frame tiếp theo vào
+        is_processing = False
     if db_rows:
         temp_product["name"] = db_rows[0][1]
         temp_product["category"] = db_rows[0][2]
