@@ -13,3 +13,7 @@ venv
 .vscode
 .pytest_cache
 .idea
+generate_pdf.py
+baocao.docx.pdf
+main.tex
+*.png

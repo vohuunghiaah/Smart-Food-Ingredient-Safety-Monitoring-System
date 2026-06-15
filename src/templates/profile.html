@@ -141,19 +141,6 @@
         gap: 8px;
     }
 
-    /* Edit name section */
-    .edit-info-section {
-        padding: 24px;
-    }
-    .edit-info-section h2 {
-        font-size: 18px;
-        font-weight: 700;
-        margin-bottom: 16px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
     /* Confirm dialog */
     .confirm-overlay {
         display: none;
@@ -249,8 +236,8 @@
                         <input type="text" class="form-input" value="{{ profile.phone_number if profile else '' }}" disabled style="opacity: 0.5;">
                         <span class="form-hint">SĐT không thể thay đổi</span>
                     </div>
-                    <!-- Hidden: giữ nguyên danh sách dị ứng hiện tại khi chỉ đổi tên -->
-                    <input type="hidden" name="allergies" value="{{ profile.allergies|join(',') if profile else '' }}">
+                    <!-- Hidden: gửi danh sách dị ứng hiện tại để không bị mất khi chỉ đổi tên -->
+                    <input type="hidden" name="allergies" id="name-form-allergies" value="{{ profile.allergies|join(',') if profile else '' }}">
                     <button type="submit" class="btn btn-primary btn-block btn-sm">
                         💾 Lưu tên
                     </button>
@@ -272,7 +259,7 @@
                 <div class="allergy-list" id="allergy-list">
                     {% if profile and profile.allergies and profile.allergies|length > 0 %}
                         {% for allergy in profile.allergies %}
-                        <div class="allergy-item fade-in" style="animation-delay: {{ loop.index0 * 0.05 }}s;" data-name="{{ allergy }}" id="allergy-item-{{ loop.index0 }}">
+                        <div class="allergy-item fade-in" data-delay="{{ loop.index0 }}" data-name="{{ allergy }}" id="allergy-item-{{ loop.index0 }}">
                             <div class="allergy-item-info">
                                 <div class="allergy-item-icon">🚫</div>
                                 <div>
@@ -351,27 +338,46 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    // ===== State =====
-    let availableIngredients = [];
-    let currentAllergies = {{ profile.allergies|tojson if profile else '[]' }};
-    let pendingRemoveName = null;
-    let pendingRemoveId = null;
+<!-- Jinja2 data injection (tách riêng để IDE không báo lỗi trong JS) -->
+<script id="profile-data" type="application/json">
+{
+    "allergies": {{ (profile.allergies if profile and profile.allergies else [])|tojson }},
+    "userName": {{ (profile.user_name if profile else '')|tojson }},
+    "actionUrl": {{ url_for('profile_page')|tojson }}
+}
+</script>
 
-    const allergyInput = document.getElementById('allergy-input');
-    const autocompleteList = document.getElementById('autocomplete-list');
-    const newAllergyTags = document.getElementById('new-allergy-tags');
-    const allergiesHidden = document.getElementById('allergies-hidden');
-    const btnSave = document.getElementById('btn-save-allergy');
+<script>
+    // ===== Load server data =====
+    var _serverData = JSON.parse(document.getElementById('profile-data').textContent);
+
+    // ===== State =====
+    var availableIngredients = [];
+    var currentAllergies = _serverData.allergies;
+    var pendingRemoveName = null;
+    var pendingRemoveId = null;
+    var currentUserName = _serverData.userName;
+    var profileActionUrl = _serverData.actionUrl;
+
+    var allergyInput = document.getElementById('allergy-input');
+    var autocompleteList = document.getElementById('autocomplete-list');
+    var newAllergyTags = document.getElementById('new-allergy-tags');
+    var allergiesHidden = document.getElementById('allergies-hidden');
+    var btnSave = document.getElementById('btn-save-allergy');
+
+    // ===== Apply animation delays =====
+    document.querySelectorAll('.allergy-item[data-delay]').forEach(function(el) {
+        el.style.animationDelay = (parseInt(el.dataset.delay) * 0.05) + 's';
+    });
 
     // ===== Load ingredients for autocomplete =====
     fetch('/api/ingredients')
-        .then(r => r.json())
-        .then(data => { availableIngredients = data.ingredients || []; });
+        .then(function(r) { return r.json(); })
+        .then(function(data) { availableIngredients = data.ingredients || []; });
 
     // ===== Autocomplete =====
     allergyInput.addEventListener('input', function() {
-        const query = this.value.trim().toLowerCase();
+        var query = this.value.trim().toLowerCase();
         autocompleteList.innerHTML = '';
 
         if (query.length < 1) {
@@ -379,21 +385,21 @@
             return;
         }
 
-        const allCurrent = getAllAllergyNames();
-        const filtered = availableIngredients.filter(ing => 
-            ing.toLowerCase().includes(query) && !allCurrent.includes(ing)
-        );
+        var allCurrent = getAllAllergyNames();
+        var filtered = availableIngredients.filter(function(ing) {
+            return ing.toLowerCase().includes(query) && allCurrent.indexOf(ing) === -1;
+        });
 
         if (filtered.length === 0) {
             autocompleteList.classList.remove('show');
             return;
         }
 
-        filtered.slice(0, 8).forEach(ing => {
-            const div = document.createElement('div');
+        filtered.slice(0, 8).forEach(function(ing) {
+            var div = document.createElement('div');
             div.className = 'autocomplete-item';
             div.textContent = ing;
-            div.addEventListener('click', () => {
+            div.addEventListener('click', function() {
                 addNewTag(ing);
                 allergyInput.value = '';
                 autocompleteList.classList.remove('show');
@@ -412,21 +418,24 @@
 
     // ===== Get all allergy names (current + new tags) =====
     function getAllAllergyNames() {
-        const newTags = Array.from(newAllergyTags.querySelectorAll('.allergy-tag'))
-            .map(t => t.dataset.name);
-        return [...currentAllergies, ...newTags];
+        var tags = newAllergyTags.querySelectorAll('.allergy-tag');
+        var newNames = [];
+        for (var i = 0; i < tags.length; i++) {
+            newNames.push(tags[i].dataset.name);
+        }
+        return currentAllergies.concat(newNames);
     }
 
     // ===== Add new allergy tag =====
     function addNewTag(name) {
-        // Remove "Chưa chọn" placeholder
-        const placeholder = document.getElementById('no-new-tag');
+        // Remove placeholder
+        var placeholder = document.getElementById('no-new-tag');
         if (placeholder) placeholder.remove();
 
-        const tag = document.createElement('span');
+        var tag = document.createElement('span');
         tag.className = 'allergy-tag';
         tag.dataset.name = name;
-        tag.innerHTML = `${name} <button type="button" class="remove-tag" onclick="removeNewTag(this)">×</button>`;
+        tag.innerHTML = name + ' <button type="button" class="remove-tag" onclick="removeNewTag(this)">&times;</button>';
         newAllergyTags.appendChild(tag);
         
         updateHiddenField();
@@ -441,7 +450,7 @@
 
         // Restore placeholder if empty
         if (newAllergyTags.querySelectorAll('.allergy-tag').length === 0) {
-            const span = document.createElement('span');
+            var span = document.createElement('span');
             span.id = 'no-new-tag';
             span.style.cssText = 'font-size: 13px; color: var(--text-muted);';
             span.textContent = 'Chưa chọn chất nào...';
@@ -456,13 +465,9 @@
 
     // ===== Enable/disable save button =====
     function updateBtnState() {
-        const hasNew = newAllergyTags.querySelectorAll('.allergy-tag').length > 0;
+        var hasNew = newAllergyTags.querySelectorAll('.allergy-tag').length > 0;
         btnSave.disabled = !hasNew;
-        if (hasNew) {
-            btnSave.style.opacity = '1';
-        } else {
-            btnSave.style.opacity = '0.5';
-        }
+        btnSave.style.opacity = hasNew ? '1' : '0.5';
     }
 
     // ===== Remove existing allergy (with confirm dialog) =====
@@ -482,26 +487,21 @@
     function executeRemove() {
         if (!pendingRemoveName) return;
 
-        // Remove from currentAllergies
-        currentAllergies = currentAllergies.filter(a => a !== pendingRemoveName);
+        // Remove from currentAllergies array
+        currentAllergies = currentAllergies.filter(function(a) { return a !== pendingRemoveName; });
 
         // Remove DOM element with animation
-        const el = document.getElementById(pendingRemoveId);
+        var el = document.getElementById(pendingRemoveId);
         if (el) {
             el.style.transition = 'all 0.3s ease';
             el.style.opacity = '0';
             el.style.transform = 'translateX(-20px)';
-            setTimeout(() => {
+            setTimeout(function() {
                 el.remove();
                 // Show empty state if no more items
                 if (currentAllergies.length === 0) {
-                    document.getElementById('allergy-list').innerHTML = `
-                        <div class="allergy-empty" id="allergy-empty">
-                            <div class="allergy-empty-icon">✅</div>
-                            <div class="allergy-empty-text">Bạn chưa đăng ký thành phần dị ứng nào</div>
-                            <div class="allergy-empty-text" style="margin-top: 4px; font-size: 12px; color: var(--text-muted);">Thêm ở phần bên dưới ↓</div>
-                        </div>
-                    `;
+                    var listEl = document.getElementById('allergy-list');
+                    listEl.innerHTML = '<div class="allergy-empty"><div class="allergy-empty-icon">✅</div><div class="allergy-empty-text">Danh sách dị ứng đã trống</div><div class="allergy-empty-text" style="margin-top:4px;font-size:12px;color:var(--text-muted);">Thêm ở phần bên dưới ↓</div></div>';
                 }
             }, 300);
         }
@@ -510,25 +510,30 @@
         document.getElementById('allergy-count').textContent = currentAllergies.length;
         document.getElementById('allergy-badge').textContent = currentAllergies.length + ' chất';
 
+        // Also update the name-form hidden field so it stays in sync
+        var nameFormAllergies = document.getElementById('name-form-allergies');
+        if (nameFormAllergies) {
+            nameFormAllergies.value = currentAllergies.join(',');
+        }
+
         // Submit form to save changes to DB
-        const form = document.createElement('form');
+        var form = document.createElement('form');
         form.method = 'POST';
-        form.action = '{{ url_for("profile_page") }}';
+        form.action = profileActionUrl;
         
-        const nameInput = document.createElement('input');
-        nameInput.type = 'hidden';
-        nameInput.name = 'user_name';
-        nameInput.value = '{{ profile.user_name if profile else "" }}';
-        form.appendChild(nameInput);
+        var hiddenName = document.createElement('input');
+        hiddenName.type = 'hidden';
+        hiddenName.name = 'user_name';
+        hiddenName.value = currentUserName;
+        form.appendChild(hiddenName);
         
-        const allergyInput = document.createElement('input');
-        allergyInput.type = 'hidden';
-        allergyInput.name = 'allergies';
-        allergyInput.value = currentAllergies.join(',');
-        form.appendChild(allergyInput);
+        var hiddenAllergies = document.createElement('input');
+        hiddenAllergies.type = 'hidden';
+        hiddenAllergies.name = 'allergies';
+        hiddenAllergies.value = currentAllergies.join(',');
+        form.appendChild(hiddenAllergies);
         
         document.body.appendChild(form);
-
         closeConfirm();
         form.submit();
     }

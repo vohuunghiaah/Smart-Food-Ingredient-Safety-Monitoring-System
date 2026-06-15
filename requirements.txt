@@ -1,11 +1,21 @@
-numpy
-pandas
+
+# Web Framework
+flask
+
+# Database
+pyodbc
+
+# Barcode Scanner
 pyzbar
 opencv-python
+numpy
+
+# Authentication
 bcrypt
-uvicorn
-python-dotenv
+
+# Translation (OpenFoodFacts API)
 deep-translator
-pyodbc
 requests
-flask
+
+# Utilities
+python-dotenv
