@@ -38,6 +38,14 @@
                     Lịch sử
                 </a>
             </li>
+            {% if session.get('is_admin') %}
+            <li>
+                <a href="{{ url_for('admin_ingredients') }}" class="nav-link {% if request.endpoint == 'admin_ingredients' %}active{% endif %}">
+                    <span class="nav-icon">⚙️</span>
+                    Quản lý
+                </a>
+            </li>
+            {% endif %}
             <li>
                 <a href="{{ url_for('logout') }}" class="nav-link">
                     <span class="nav-icon">🚪</span>

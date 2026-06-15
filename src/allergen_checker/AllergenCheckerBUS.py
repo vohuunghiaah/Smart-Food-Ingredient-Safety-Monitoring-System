@@ -137,61 +137,29 @@ class AllergenCheckerBUS:
 
     def _classify_warning(self, result):
         """
-        Phan loai muc canh bao dua tren so luong va loai so khop.
-
-        Quy tac:
+        Phan loai muc canh bao.
+        
+        Quy tac da cap nhat (Nhi phan):
         - SAFE:     Khong co thanh phan di ung nao trung khop
-        - LOW:      Chi co so khop qua ten goi khac (gian tiep)
-        - MEDIUM:   Co 1 thanh phan di ung truc tiep
-        - HIGH:     Co 2 thanh phan di ung truc tiep
-        - CRITICAL: Co >= 3 thanh phan di ung truc tiep
+        - CRITICAL: Phat hien it nhat 1 thanh phan di ung (bat ke truc tiep hay gian tiep)
         """
+        # Truong hop 1: Khong match bat ky chat nao -> An toan tuyet doi
         if len(result.matched_allergens) == 0:
             return (
                 AllergenResultDTO.LEVEL_SAFE,
                 "AN TOAN - San pham khong chua thanh phan di ung cua ban."
             )
 
-        # Dem so luong so khop truc tiep va gian tiep
-        direct_matches = [m for m in result.matched_allergens if m["matched_by"] == "direct"]
-        alias_matches = [m for m in result.matched_allergens if m["matched_by"] != "direct"]
-
-        direct_count = len(direct_matches)
-        alias_count = len(alias_matches)
-
-        # Chi co so khop gian tiep (qua ten goi khac)
-        if direct_count == 0 and alias_count > 0:
-            alias_names = ", ".join(m["name"] for m in alias_matches)
-            return (
-                AllergenResultDTO.LEVEL_LOW,
-                f"CANH BAO THAP - Phat hien {alias_count} thanh phan "
-                f"lien quan qua ten goi khac: {alias_names}"
-            )
-
-        # Co 1 thanh phan truc tiep
-        if direct_count == 1:
-            all_names = ", ".join(m["name"] for m in result.matched_allergens)
-            return (
-                AllergenResultDTO.LEVEL_MEDIUM,
-                f"CANH BAO TRUNG BINH - Phat hien {direct_count} thanh phan "
-                f"di ung truc tiep: {all_names}"
-            )
-
-        # Co 2 thanh phan truc tiep
-        if direct_count == 2:
-            all_names = ", ".join(m["name"] for m in result.matched_allergens)
-            return (
-                AllergenResultDTO.LEVEL_HIGH,
-                f"CANH BAO CAO - Phat hien {direct_count} thanh phan "
-                f"di ung truc tiep: {all_names}"
-            )
-
-        # Co >= 3 thanh phan truc tiep
-        all_names = ", ".join(m["name"] for m in result.matched_allergens)
+        # Truong hop 2: Phat hien co chat di ung -> Nguy hiem tuc thi
+        # Ghi nhan toan bo ten chat (bao gom ca match truc tiep va qua alias)
+        all_names = ", ".join(
+            f"{m['name']} ({m['matched_by']})" if m["matched_by"] != "direct" else m['name'] 
+            for m in result.matched_allergens
+        )
+        
         return (
             AllergenResultDTO.LEVEL_CRITICAL,
-            f"NGUY HIEM - Phat hien {direct_count} thanh phan "
-            f"di ung truc tiep: {all_names}. KHONG NEN SU DUNG!"
+            f"NGUY HIEM - Phat hien thanh phan di ung: {all_names}. TUYET DOI KHONG SU DUNG!"
         )
 
     # ===================================================================

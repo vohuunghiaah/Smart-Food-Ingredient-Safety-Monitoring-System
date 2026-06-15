@@ -62,6 +62,22 @@ def login_required(f):
     return decorated
 
 
+def admin_required(f):
+    """Decorator kiểm tra quyền admin."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Vui lòng đăng nhập để tiếp tục.', 'warning')
+            return redirect(url_for('login'))
+        if not session.get('is_admin'):
+            flash('Bạn không có quyền truy cập trang này!', 'error')
+            return redirect(url_for('scanner_page'))
+        return f(*args, **kwargs)
+
+    return decorated
+
+
 # ============================================================
 # Barcode Processing (upgraded with allergen check)
 # ============================================================
@@ -183,6 +199,8 @@ def login():
                 session['user_id'] = user_id
                 session['user_name'] = user_info.user_name
                 session['phone'] = user_info.phone_number
+                # Kiểm tra quyền admin (U00)
+                session['is_admin'] = (user_id == 'U00')
 
                 flash(f'Chào mừng {user_info.user_name}! 🎉', 'success')
                 return redirect(url_for('scanner_page'))
@@ -320,11 +338,7 @@ def get_data():
         if user_id:
             if current_product["name"] != "Không tìm thấy":
 
-                result = allergen_bus._check_allergens(user_id, {
-                    "id": current_product["barcode"],
-                    "name": current_product["name"],
-                    "group": current_product["category"]
-                })
+                result = allergen_bus.check_allergens_by_barcode(user_id, current_product["barcode"])
 
                 current_product["warning_level"] = result.warning_level
                 current_product["warning_message"] = result.warning_message
@@ -340,6 +354,23 @@ def get_data():
     return jsonify(current_product)
 
 
+@app.route('/reset_scan')
+@login_required
+def reset_scan():
+    """Reset trạng thái quét để sẵn sàng quét mã vạch mới."""
+    global current_product
+    current_product = {
+        "barcode": None,
+        "name": None,
+        "category": None,
+        "ingredients": [],
+        "warning_level": None,
+        "warning_message": None,
+        "matched_allergens": []
+    }
+    return jsonify({"status": "ok"})
+
+
 @app.route('/api/ingredients')
 @login_required
 def api_ingredients():
@@ -350,6 +381,51 @@ def api_ingredients():
         return jsonify({"ingredients": names})
     except Exception as e:
         return jsonify({"ingredients": [], "error": str(e)})
+
+
+# ============================================================
+# Routes — Admin (require admin role)
+# ============================================================
+@app.route('/admin/ingredients', methods=['GET', 'POST'])
+@admin_required
+def admin_ingredients():
+    """Trang quản lý thành phần (chỉ admin)."""
+    if request.method == 'POST':
+        action = request.form.get('action', '')
+
+        if action == 'add':
+            ingredient_name = request.form.get('ingredient_name', '').strip()
+            if not ingredient_name:
+                flash('Vui lòng nhập tên thành phần!', 'error')
+            else:
+                try:
+                    success, message = ingredient_dao.add_ingredient(ingredient_name)
+                    flash(message, 'success' if success else 'error')
+                except Exception as e:
+                    print(f"[Admin Add Error] {e}")
+                    flash('Lỗi khi thêm thành phần!', 'error')
+
+        elif action == 'delete':
+            ingredient_id = request.form.get('ingredient_id', '').strip()
+            if ingredient_id:
+                try:
+                    success, message = ingredient_dao.delete_ingredient(ingredient_id)
+                    flash(message, 'success' if success else 'error')
+                except Exception as e:
+                    print(f"[Admin Delete Error] {e}")
+                    flash('Lỗi khi xóa thành phần!', 'error')
+
+        return redirect(url_for('admin_ingredients'))
+
+    # GET — load all ingredients
+    try:
+        ingredients = ingredient_dao.get_all_ingredients()
+    except Exception as e:
+        print(f"[Admin Load Error] {e}")
+        flash('Không thể tải danh sách thành phần!', 'error')
+        ingredients = []
+
+    return render_template('admin.html', ingredients=ingredients)
 
 
 # ============================================================

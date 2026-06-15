@@ -1,24 +1,14 @@
 import re
-import pyodbc
+import os
+import sys
 import requests
 from deep_translator import GoogleTranslator
 
-SERVER = 'DESKTOP-1PJL28F'
-DATABASE_NAME = 'FOOD'
-USERNAME = 'sa'
-PASSWORD = 'PASS'
+# Đảm bảo import path đúng
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-
-def get_connection_string():
-    return (
-        f"Driver={{ODBC Driver 17 for SQL Server}};"
-        f"Server={SERVER};"
-        f"Database={DATABASE_NAME};"
-        f"UID={USERNAME};"
-        f"PWD={PASSWORD};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=yes;"
-    )
+from utils.database_config import database_config
 
 
 def split_ingredients(text):
@@ -40,8 +30,9 @@ def split_ingredients(text):
 
 
 def get_product_details(barcode_val):
+    """Truy vấn sản phẩm từ DB nội bộ — dùng chung database_config()."""
     try:
-        conn = pyodbc.connect(get_connection_string())
+        conn = database_config()
         cursor = conn.cursor()
         query = """
                 SELECT s.ma_san_pham, s.ten_san_pham, n.ten_nhom, t.ten_thanh_phan
@@ -117,7 +108,7 @@ def main():
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
     try:
-        from scanner.scanner import scan_barcode_from_camera
+        from scanner import scan_barcode_from_camera
     except ImportError:
         from scanner import scan_barcode_from_camera
 

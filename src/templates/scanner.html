@@ -18,6 +18,7 @@
             <div class="video-status">
                 <span class="pulse-dot"></span>
                 Đang quét tự động — EAN13 / CODE128
+                <button class="btn-reset-scan" id="btn-reset" onclick="resetScan()" style="display:none;">🔄 Quét mới</button>
             </div>
         </div>
 
@@ -66,6 +67,24 @@
         </div>
     </div>
 </div>
+
+<style>
+    .btn-reset-scan {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: #fff;
+        padding: 5px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        margin-left: 12px;
+        transition: all 0.3s;
+    }
+    .btn-reset-scan:hover {
+        background: rgba(46,204,113,0.2);
+        border-color: rgba(46,204,113,0.4);
+    }
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -75,10 +94,12 @@
         'LOW':      { icon: '⚠️', label: 'THẤP',          class: 'warning-low' },
         'MEDIUM':   { icon: '🟠', label: 'TRUNG BÌNH',    class: 'warning-medium' },
         'HIGH':     { icon: '🔴', label: 'CAO',           class: 'warning-high' },
-        'CRITICAL': { icon: '🚨', label: 'NGUY HIỂM',     class: 'warning-critical' }
+        'CRITICAL': { icon: '🚨', label: 'NGUY HIỂM',     class: 'warning-critical' },
+        'NOT_FOUND':{ icon: '❓', label: 'KHÔNG TÌM THẤY', class: 'warning-safe' }
     };
 
     let lastBarcode = null;
+    let lastWarningLevel = null;
 
     function updateResults() {
         fetch('/get_data')
@@ -86,13 +107,21 @@
             .then(data => {
                 if (!data.barcode) return;
 
-                // Only update if barcode changed
-                if (data.barcode === lastBarcode) return;
+                const barcodeChanged = (data.barcode !== lastBarcode);
+                const warningArrived = (data.warning_level !== null && lastWarningLevel === null && data.barcode === lastBarcode);
+
+                // Cập nhật khi barcode thay đổi HOẶC khi warning_level vừa có kết quả
+                if (!barcodeChanged && !warningArrived) return;
+
                 lastBarcode = data.barcode;
+                lastWarningLevel = data.warning_level;
 
                 document.getElementById('res-barcode').textContent = data.barcode;
                 document.getElementById('res-name').textContent = data.name || 'Không xác định';
                 document.getElementById('res-category').textContent = data.category || 'Không xác định';
+
+                // Hiện nút reset sau khi có kết quả
+                document.getElementById('btn-reset').style.display = data.warning_level ? 'inline-block' : 'none';
 
                 // Ingredients
                 const ul = document.getElementById('res-ingredients');
@@ -120,33 +149,58 @@
 
                 // Warning Panel
                 const panel = document.getElementById('warning-panel');
-                const level = data.warning_level || 'SAFE';
-                const config = WARNING_CONFIG[level] || WARNING_CONFIG['SAFE'];
+                if (data.warning_level) {
+                    const level = data.warning_level;
+                    const config = WARNING_CONFIG[level] || WARNING_CONFIG['SAFE'];
 
-                panel.style.display = 'block';
-                panel.className = 'warning-panel ' + config.class;
-                document.getElementById('warning-icon').textContent = config.icon;
-                document.getElementById('warning-label').textContent = config.label;
-                document.getElementById('warning-message').textContent = data.warning_message || '';
+                    panel.style.display = 'block';
+                    panel.className = 'warning-panel ' + config.class;
+                    document.getElementById('warning-icon').textContent = config.icon;
+                    document.getElementById('warning-label').textContent = config.label;
+                    document.getElementById('warning-message').textContent = data.warning_message || '';
 
-                // Matched allergens
-                const matchedDiv = document.getElementById('warning-matched');
-                const matchedList = document.getElementById('matched-list');
-                
-                if (data.matched_allergens && data.matched_allergens.length > 0) {
-                    matchedDiv.style.display = 'block';
-                    matchedList.innerHTML = '';
-                    data.matched_allergens.forEach(m => {
-                        const span = document.createElement('span');
-                        span.className = 'warning-matched-item';
-                        span.textContent = '⚠️ ' + m.name + (m.matched_by !== 'direct' ? ' (' + m.matched_by + ')' : '');
-                        matchedList.appendChild(span);
-                    });
+                    // Matched allergens
+                    const matchedDiv = document.getElementById('warning-matched');
+                    const matchedList = document.getElementById('matched-list');
+                    
+                    if (data.matched_allergens && data.matched_allergens.length > 0) {
+                        matchedDiv.style.display = 'block';
+                        matchedList.innerHTML = '';
+                        data.matched_allergens.forEach(m => {
+                            const span = document.createElement('span');
+                            span.className = 'warning-matched-item';
+                            span.textContent = '⚠️ ' + m.name + (m.matched_by !== 'direct' ? ' (' + m.matched_by + ')' : '');
+                            matchedList.appendChild(span);
+                        });
+                    } else {
+                        matchedDiv.style.display = 'none';
+                    }
                 } else {
-                    matchedDiv.style.display = 'none';
+                    // warning_level chưa có (đang tải)
+                    panel.style.display = 'block';
+                    panel.className = 'warning-panel warning-safe';
+                    document.getElementById('warning-icon').textContent = '⏳';
+                    document.getElementById('warning-label').textContent = 'ĐANG PHÂN TÍCH...';
+                    document.getElementById('warning-message').textContent = 'Đang kiểm tra thành phần dị ứng...';
+                    document.getElementById('warning-matched').style.display = 'none';
                 }
             })
             .catch(err => console.error('Fetch error:', err));
+    }
+
+    function resetScan() {
+        fetch('/reset_scan')
+            .then(() => {
+                lastBarcode = null;
+                lastWarningLevel = null;
+                document.getElementById('res-barcode').textContent = 'Đang đợi quét sản phẩm...';
+                document.getElementById('res-name').textContent = '---';
+                document.getElementById('res-category').textContent = '---';
+                document.getElementById('res-ingredients').innerHTML =
+                    '<li style="color: var(--text-muted); border: none;">Chưa có dữ liệu...</li>';
+                document.getElementById('warning-panel').style.display = 'none';
+                document.getElementById('btn-reset').style.display = 'none';
+            });
     }
 
     // Poll every 1 second

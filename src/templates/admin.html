@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý thành phần{% endblock %}
+
+{% block content %}
+<div class="admin-container" id="admin-page">
+    <div class="admin-header">
+        <h1>⚙️ Quản lý Thành phần Thực phẩm</h1>
+        <p class="admin-subtitle">Thêm, xem và xóa thành phần trong cơ sở dữ liệu</p>
+    </div>
+
+    <!-- Form thêm thành phần mới -->
+    <div class="admin-card" id="add-ingredient-card">
+        <h2 class="card-title">➕ Thêm thành phần mới</h2>
+        <form method="POST" action="{{ url_for('admin_ingredients') }}" class="add-form" id="add-ingredient-form">
+            <input type="hidden" name="action" value="add">
+            <div class="form-row">
+                <input type="text" name="ingredient_name" id="ingredient-name-input"
+                       placeholder="Nhập tên thành phần (VD: Đậu xanh, Bơ, Trứng...)"
+                       required autocomplete="off" class="form-input">
+                <button type="submit" class="btn-add" id="btn-add-ingredient">
+                    <span>Thêm</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Bảng danh sách thành phần -->
+    <div class="admin-card" id="ingredients-list-card">
+        <div class="card-header-row">
+            <h2 class="card-title">📋 Danh sách thành phần ({{ ingredients|length }})</h2>
+            <input type="text" id="search-ingredient" placeholder="🔍 Tìm kiếm..."
+                   class="search-input" onkeyup="filterIngredients()">
+        </div>
+
+        <div class="table-wrapper">
+            <table class="admin-table" id="ingredients-table">
+                <thead>
+                    <tr>
+                        <th class="col-stt">STT</th>
+                        <th class="col-code">Mã</th>
+                        <th class="col-name">Tên thành phần</th>
+                        <th class="col-action">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ing in ingredients %}
+                    <tr class="ingredient-row" id="row-{{ ing.ingredient_id }}">
+                        <td class="col-stt">{{ loop.index }}</td>
+                        <td class="col-code"><code>{{ ing.ingredient_id }}</code></td>
+                        <td class="col-name">{{ ing.ingredient_name }}</td>
+                        <td class="col-action">
+                            <button class="btn-delete" onclick="confirmDelete('{{ ing.ingredient_id }}', '{{ ing.ingredient_name }}')"
+                                    id="btn-del-{{ ing.ingredient_id }}">
+                                🗑️ Xóa
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not ingredients %}
+                    <tr>
+                        <td colspan="4" class="empty-state">Chưa có thành phần nào trong hệ thống.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="delete-modal" style="display:none">
+    <div class="modal-box">
+        <h3>⚠️ Xác nhận xóa</h3>
+        <p>Bạn có chắc muốn xóa thành phần <strong id="delete-name"></strong>?</p>
+        <p class="modal-warning">Hành động này không thể hoàn tác! Các dữ liệu liên quan (dị ứng, sản phẩm) cũng sẽ bị xóa.</p>
+        <form method="POST" action="{{ url_for('admin_ingredients') }}" id="delete-form">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="ingredient_id" id="delete-id">
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" onclick="closeModal()">Hủy</button>
+                <button type="submit" class="btn-confirm-delete">Xóa</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .admin-container {
+        max-width: 900px;
+        margin: 90px auto 30px;
+        padding: 0 20px;
+    }
+
+    .admin-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .admin-header h1 {
+        font-size: 1.8rem;
+        color: #fff;
+        margin-bottom: 5px;
+    }
+
+    .admin-subtitle {
+        color: rgba(255,255,255,0.5);
+        font-size: 0.95rem;
+    }
+
+    .admin-card {
+        background: rgba(255,255,255,0.06);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px;
+        padding: 25px;
+        margin-bottom: 25px;
+    }
+
+    .card-title {
+        color: #fff;
+        font-size: 1.2rem;
+        margin-bottom: 18px;
+    }
+
+    .card-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .card-header-row .card-title { margin-bottom: 0; }
+
+    .search-input {
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 8px;
+        padding: 8px 14px;
+        color: #fff;
+        font-size: 0.9rem;
+        width: 220px;
+        outline: none;
+        transition: border-color 0.3s;
+    }
+    .search-input:focus { border-color: rgba(100,200,255,0.5); }
+    .search-input::placeholder { color: rgba(255,255,255,0.35); }
+
+    /* Form thêm */
+    .form-row {
+        display: flex;
+        gap: 12px;
+    }
+
+    .form-input {
+        flex: 1;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 10px;
+        padding: 12px 16px;
+        color: #fff;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.3s;
+    }
+    .form-input:focus { border-color: rgba(46,204,113,0.6); }
+    .form-input::placeholder { color: rgba(255,255,255,0.35); }
+
+    .btn-add {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 12px 28px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        white-space: nowrap;
+    }
+    .btn-add:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(46,204,113,0.3); }
+
+    /* Bảng */
+    .table-wrapper {
+        overflow-x: auto;
+        border-radius: 10px;
+    }
+
+    .admin-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .admin-table thead th {
+        background: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.7);
+        padding: 12px 15px;
+        text-align: left;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .admin-table tbody td {
+        padding: 12px 15px;
+        color: #e0e0e0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        font-size: 0.95rem;
+    }
+
+    .admin-table tbody tr:hover {
+        background: rgba(255,255,255,0.04);
+    }
+
+    .col-stt { width: 50px; text-align: center; }
+    .col-code { width: 80px; }
+    .col-action { width: 100px; text-align: center; }
+
+    .admin-table code {
+        background: rgba(100,200,255,0.1);
+        color: #64c8ff;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+
+    .btn-delete {
+        background: rgba(231,76,60,0.15);
+        color: #e74c3c;
+        border: 1px solid rgba(231,76,60,0.3);
+        border-radius: 6px;
+        padding: 6px 14px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.3s;
+    }
+    .btn-delete:hover {
+        background: rgba(231,76,60,0.3);
+        transform: scale(1.05);
+    }
+
+    .empty-state {
+        text-align: center;
+        color: rgba(255,255,255,0.35);
+        padding: 30px !important;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(5px);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-box {
+        background: #1e1e2e;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 450px;
+        width: 90%;
+        animation: modalIn 0.2s ease;
+    }
+
+    @keyframes modalIn {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-box h3 {
+        color: #fff;
+        margin-bottom: 12px;
+        font-size: 1.2rem;
+    }
+
+    .modal-box p {
+        color: rgba(255,255,255,0.7);
+        margin-bottom: 8px;
+    }
+
+    .modal-warning {
+        color: #e74c3c !important;
+        font-size: 0.85rem;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 20px;
+    }
+
+    .btn-cancel {
+        background: rgba(255,255,255,0.08);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 8px;
+        padding: 10px 22px;
+        cursor: pointer;
+        font-size: 0.95rem;
+    }
+    .btn-cancel:hover { background: rgba(255,255,255,0.12); }
+
+    .btn-confirm-delete {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 22px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    .btn-confirm-delete:hover { box-shadow: 0 5px 15px rgba(231,76,60,0.3); }
+
+    @media (max-width: 600px) {
+        .form-row { flex-direction: column; }
+        .card-header-row { flex-direction: column; align-items: stretch; }
+        .search-input { width: 100%; }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function filterIngredients() {
+        const query = document.getElementById('search-ingredient').value.toLowerCase();
+        const rows = document.querySelectorAll('.ingredient-row');
+        rows.forEach(row => {
+            const name = row.querySelector('.col-name').textContent.toLowerCase();
+            const code = row.querySelector('.col-code').textContent.toLowerCase();
+            row.style.display = (name.includes(query) || code.includes(query)) ? '' : 'none';
+        });
+    }
+
+    function confirmDelete(id, name) {
+        document.getElementById('delete-id').value = id;
+        document.getElementById('delete-name').textContent = name;
+        document.getElementById('delete-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('delete-modal').style.display = 'none';
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeModal();
+    });
+</script>
+{% endblock %}
