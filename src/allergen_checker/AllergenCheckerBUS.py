@@ -177,13 +177,10 @@ class AllergenCheckerBUS:
             result = self._check_allergens(user_id, product)
             results.append(result)
 
-        # Sap xep theo muc canh bao giam dan
+        # Sap xep theo muc canh bao giam dan (Nhi phan: CRITICAL truoc, SAFE sau)
         level_order = {
             AllergenResultDTO.LEVEL_CRITICAL: 0,
-            AllergenResultDTO.LEVEL_HIGH: 1,
-            AllergenResultDTO.LEVEL_MEDIUM: 2,
-            AllergenResultDTO.LEVEL_LOW: 3,
-            AllergenResultDTO.LEVEL_SAFE: 4,
+            AllergenResultDTO.LEVEL_SAFE: 1,
         }
         results.sort(key=lambda r: level_order.get(r.warning_level, 99))
 
