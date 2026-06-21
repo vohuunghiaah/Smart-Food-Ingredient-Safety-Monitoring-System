@@ -11,6 +11,15 @@
 
     <div class="glass-card slide-up" style="padding: 24px;">
         {% if history and history|length > 0 %}
+
+        <!-- Header row: count + clear all button -->
+        <div class="history-header">
+            <span class="history-count">Tổng: {{ history|length }} bản ghi</span>
+            <button class="btn-clear-all" id="btn-clear-all" type="button">
+                🗑️ Xóa toàn bộ
+            </button>
+        </div>
+
         <div class="history-table-container">
             <table class="history-table">
                 <thead>
@@ -20,32 +29,37 @@
                         <th>Mã vạch</th>
                         <th>Mức cảnh báo</th>
                         <th>Thời gian</th>
+                        <th>Hành động</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="history-tbody">
                     {% for item in history %}
-                    <tr v-for="(item, index) in items" :key="index" class="fade-in" :style="{ animationDelay: (index * 0.05) + 's' }">
+                    <tr class="fade-in history-row">
                         <td style="color: var(--text-muted);">{{ loop.index }}</td>
                         <td style="color: var(--text-primary); font-weight: 500;">{{ item.product_name }}</td>
                         <td>
-                            <code style="background: var(--bg-glass); padding: 4px 8px; border-radius: 6px; font-size: 13px;">{{ item.barcode }}</code>
+                            <code class="barcode-code">{{ item.barcode }}</code>
                         </td>
                         <td>
                             {% if item.warning_level == 'SAFE' %}
                                 <span class="badge badge-safe">✅ An toàn</span>
-                            {% elif item.warning_level == 'LOW' %}
-                                <span class="badge badge-low">⚠️ Thấp</span>
-                            {% elif item.warning_level == 'MEDIUM' %}
-                                <span class="badge badge-medium">🟠 Trung bình</span>
-                            {% elif item.warning_level == 'HIGH' %}
-                                <span class="badge badge-high">🔴 Cao</span>
                             {% elif item.warning_level == 'CRITICAL' %}
                                 <span class="badge badge-critical">🚨 Nguy hiểm</span>
+                            {% elif item.warning_level == 'NOT_FOUND' %}
+                                <span class="badge badge-safe">❓ Không tìm thấy</span>
                             {% else %}
                                 <span class="badge badge-safe">{{ item.warning_level }}</span>
                             {% endif %}
                         </td>
                         <td style="color: var(--text-muted); font-size: 13px;">{{ item.scan_time }}</td>
+                        <td>
+                            <button class="btn-delete-row"
+                                    data-record-id="{{ item.id }}"
+                                    data-product-name="{{ item.product_name }}"
+                                    title="Xóa bản ghi này" type="button">
+                                ✕
+                            </button>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -60,4 +74,191 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Delete Single Record Modal -->
+<div class="modal-overlay" id="delete-modal" style="display:none">
+    <div class="modal-box">
+        <h3>⚠️ Xác nhận xóa</h3>
+        <p>Bạn có chắc muốn xóa bản ghi quét <strong id="delete-product-name"></strong>?</p>
+        <form method="POST" action="{{ url_for('history_page') }}" id="delete-form">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="record_id" id="delete-record-id">
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" id="cancel-delete-btn">Hủy</button>
+                <button type="submit" class="btn-confirm-delete">Xóa</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Clear All Modal -->
+<div class="modal-overlay" id="clear-modal" style="display:none">
+    <div class="modal-box">
+        <h3>🗑️ Xóa toàn bộ lịch sử</h3>
+        <p>Bạn có chắc muốn xóa <strong>tất cả {{ history|length }} bản ghi</strong> lịch sử quét?</p>
+        <p class="modal-warning">Hành động này không thể hoàn tác!</p>
+        <form method="POST" action="{{ url_for('history_page') }}">
+            <input type="hidden" name="action" value="clear_all">
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" id="cancel-clear-btn">Hủy</button>
+                <button type="submit" class="btn-confirm-delete">Xóa toàn bộ</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .history-count {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .barcode-code {
+        background: var(--bg-glass);
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+    }
+
+    .btn-clear-all {
+        background: rgba(231,76,60,0.12);
+        color: #e74c3c;
+        border: 1px solid rgba(231,76,60,0.25);
+        border-radius: 8px;
+        padding: 8px 18px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.3s;
+    }
+    .btn-clear-all:hover {
+        background: rgba(231,76,60,0.25);
+        transform: translateY(-1px);
+    }
+
+    .btn-delete-row {
+        background: transparent;
+        color: rgba(255,255,255,0.3);
+        border: none;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    .btn-delete-row:hover {
+        color: #e74c3c;
+        background: rgba(231,76,60,0.1);
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(5px);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-box {
+        background: #1e1e2e;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 450px;
+        width: 90%;
+        animation: modalIn 0.2s ease;
+    }
+
+    @keyframes modalIn {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-box h3 { color: #fff; margin-bottom: 12px; font-size: 1.2rem; }
+    .modal-box p { color: rgba(255,255,255,0.7); margin-bottom: 8px; }
+    .modal-warning { color: #e74c3c !important; font-size: 0.85rem; }
+
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 20px;
+    }
+
+    .btn-cancel {
+        background: rgba(255,255,255,0.08);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 8px;
+        padding: 10px 22px;
+        cursor: pointer;
+        font-size: 0.95rem;
+    }
+    .btn-cancel:hover { background: rgba(255,255,255,0.12); }
+
+    .btn-confirm-delete {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 22px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    .btn-confirm-delete:hover { box-shadow: 0 5px 15px rgba(231,76,60,0.3); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Delete single record — event delegation
+    document.querySelectorAll('.btn-delete-row').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var recordId = this.getAttribute('data-record-id');
+            var productName = this.getAttribute('data-product-name');
+            document.getElementById('delete-record-id').value = recordId;
+            document.getElementById('delete-product-name').textContent = productName;
+            document.getElementById('delete-modal').style.display = 'flex';
+        });
+    });
+
+    // Clear all button
+    var clearAllBtn = document.getElementById('btn-clear-all');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', function() {
+            document.getElementById('clear-modal').style.display = 'flex';
+        });
+    }
+
+    // Cancel buttons
+    document.getElementById('cancel-delete-btn').addEventListener('click', function() {
+        document.getElementById('delete-modal').style.display = 'none';
+    });
+    document.getElementById('cancel-clear-btn').addEventListener('click', function() {
+        document.getElementById('clear-modal').style.display = 'none';
+    });
+
+    // Close modals on Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.getElementById('delete-modal').style.display = 'none';
+            document.getElementById('clear-modal').style.display = 'none';
+        }
+    });
+
+    // Staggered animation for rows
+    document.querySelectorAll('.history-row').forEach(function(row, index) {
+        row.style.animationDelay = (index * 0.03) + 's';
+    });
+</script>
 {% endblock %}

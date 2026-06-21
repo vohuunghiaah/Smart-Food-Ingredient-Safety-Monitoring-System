@@ -73,3 +73,37 @@ class HistoryDAO:
         except Exception as e:
             print(f"[HistoryDAO] Lỗi khi đọc lịch sử: {e}")
             return []
+
+    def delete_record(self, record_id, user_id):
+        """Xóa 1 bản ghi lịch sử (kiểm tra quyền sở hữu)."""
+        try:
+            conn = database_config()
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM LichSuQuet WHERE id = ? AND ma_nguoi_dung = ?",
+                (record_id, user_id)
+            )
+            affected = cursor.rowcount
+            conn.commit()
+            conn.close()
+            return affected > 0
+        except Exception as e:
+            print(f"[HistoryDAO] Lỗi khi xóa bản ghi: {e}")
+            return False
+
+    def clear_user_history(self, user_id):
+        """Xóa toàn bộ lịch sử quét của user."""
+        try:
+            conn = database_config()
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM LichSuQuet WHERE ma_nguoi_dung = ?",
+                (user_id,)
+            )
+            affected = cursor.rowcount
+            conn.commit()
+            conn.close()
+            return affected
+        except Exception as e:
+            print(f"[HistoryDAO] Lỗi khi xóa lịch sử: {e}")
+            return 0

@@ -306,13 +306,69 @@ def profile_page():
     return render_template('profile.html', profile=profile, scan_count=scan_count)
 
 
-@app.route('/history')
+@app.route('/history', methods=['GET', 'POST'])
 @login_required
 def history_page():
     """Trang lịch sử quét sản phẩm."""
     user_id = session['user_id']
+
+    if request.method == 'POST':
+        action = request.form.get('action', '')
+
+        if action == 'delete':
+            record_id = request.form.get('record_id', '')
+            if record_id:
+                success = history_dao.delete_record(int(record_id), user_id)
+                if success:
+                    flash('Đã xóa bản ghi!', 'success')
+                else:
+                    flash('Không thể xóa bản ghi!', 'error')
+
+        elif action == 'clear_all':
+            count = history_dao.clear_user_history(user_id)
+            flash(f'Đã xóa {count} bản ghi lịch sử!', 'success')
+
+        return redirect(url_for('history_page'))
+
     history = history_dao.get_user_history(user_id, limit=50)
     return render_template('history.html', history=history)
+
+
+def _check_api_allergens(user_id, ingredients_list):
+    """
+    So khớp thủ công thành phần API vs dị ứng user.
+    Trả về dict với warning_level, warning_message, matched_allergens.
+    """
+    user_allergies = allergen_bus.dao.get_user_allergies(user_id)
+    matched = []
+
+    for ing_name in ingredients_list:
+        for allergy in user_allergies:
+            name_lower = allergy["name"].lower()
+            ing_lower = ing_name.lower()
+            if name_lower in ing_lower or ing_lower in name_lower:
+                if allergy["name"] not in [m["name"] for m in matched]:
+                    matched.append({
+                        "id": allergy["id"],
+                        "name": allergy["name"],
+                        "matched_by": "API (" + ing_name + ")"
+                    })
+
+    if len(matched) == 0:
+        return {
+            "warning_level": "SAFE",
+            "warning_message": "AN TOÀN - Sản phẩm (API) không chứa thành phần dị ứng của bạn.",
+            "matched_allergens": []
+        }
+
+    names = ", ".join(
+        m["name"] + " (" + m["matched_by"] + ")" for m in matched
+    )
+    return {
+        "warning_level": "CRITICAL",
+        "warning_message": "NGUY HIỂM - Phát hiện thành phần dị ứng: " + names + ". TUYỆT ĐỐI KHÔNG SỬ DỤNG!",
+        "matched_allergens": matched
+    }
 
 
 # ============================================================
@@ -343,46 +399,23 @@ def get_data():
                 result = allergen_bus.check_allergens_by_barcode(user_id, barcode)
 
                 if result.product_name is not None:
-                    # ====== Trường hợp 1: Sản phẩm CÓ trong DB ======
+                    # Trường hợp 1: Sản phẩm CÓ trong DB
                     current_product["warning_level"] = result.warning_level
                     current_product["warning_message"] = result.warning_message
                     current_product["matched_allergens"] = result.matched_allergens
                 else:
-                    # ====== Trường hợp 2: Sản phẩm từ API ======
-                    # So khớp thủ công: tên thành phần API vs tên dị ứng của user
-                    user_allergies = allergen_bus.dao.get_user_allergies(user_id)
-                    api_ingredients = current_product.get("ingredients", [])
-                    matched_online = []
-
-                    for ing_name in api_ingredients:
-                        for allergy in user_allergies:
-                            if allergy["name"].lower() in ing_name.lower() or ing_name.lower() in allergy["name"].lower():
-                                if allergy["name"] not in [m["name"] for m in matched_online]:
-                                    matched_online.append({
-                                        "id": allergy["id"],
-                                        "name": allergy["name"],
-                                        "matched_by": f"API ({ing_name})"
-                                    })
-
-                    current_product["matched_allergens"] = matched_online
-
-                    if len(matched_online) == 0:
-                        current_product["warning_level"] = "SAFE"
-                        current_product["warning_message"] = "AN TOÀN - Sản phẩm (API) không chứa thành phần dị ứng của bạn."
-                    else:
-                        names = ", ".join(
-                            f"{m['name']} ({m['matched_by']})" if "API" in m.get("matched_by", "") else m['name']
-                            for m in matched_online
-                        )
-                        current_product["warning_level"] = "CRITICAL"
-                        current_product["warning_message"] = f"NGUY HIỂM - Phát hiện thành phần dị ứng: {names}. TUYỆT ĐỐI KHÔNG SỬ DỤNG!"
+                    # Trường hợp 2: Sản phẩm từ API
+                    api_result = _check_api_allergens(user_id, current_product.get("ingredients", []))
+                    current_product["warning_level"] = api_result["warning_level"]
+                    current_product["warning_message"] = api_result["warning_message"]
+                    current_product["matched_allergens"] = api_result["matched_allergens"]
 
                 history_dao.add_scan_record(user_id, barcode, current_product["name"],
                                             current_product["warning_level"])
             else:
                 current_product["warning_level"] = "NOT_FOUND"
                 current_product[
-                    "warning_message"] = f"Không tìm thấy sản phẩm với mã vạch: {current_product['barcode']}"
+                    "warning_message"] = "Không tìm thấy sản phẩm với mã vạch: " + current_product["barcode"]
 
     return jsonify(current_product)
 
